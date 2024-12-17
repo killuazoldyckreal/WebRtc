@@ -1,484 +1,478 @@
 <!DOCTYPE html>
 <html lang="en">
-
-<head>
+  <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WebRTC Chat - Peer</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap">
-	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" />
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: 'Roboto', sans-serif;
-            background-color: #2c2f33;
-            color: #ffffff;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Roboto', sans-serif;
+        background-color: #2c2f33;
+        color: #ffffff;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100dvh;
+      }
+
+      .container {
+        background-color: #23272a;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        width: 100%;
+        max-width: 600px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      h1 {
+        text-align: center;
+        font-size: 2.0rem;
+        margin-bottom: 10px;
+        color: #7289da;
+      }
+
+      p {
+        font-size: 14px;
+        color: #99aab5;
+        margin: 10px 0;
+      }
+
+      input,
+      textarea {
+        width: 100%;
+        max-width: 450px;
+        margin: 15px 0;
+        padding: 10px;
+        border: 1px solid #99aab5;
+        border-radius: 4px;
+        background-color: #2c2f33;
+        color: #ffffff;
+        font-size: 14px;
+        box-sizing: border-box;
+      }
+
+      input:focus,
+      textarea:focus {
+        outline: none;
+        border-color: #7289da;
+      }
+
+      .button-container {
+        display: flex;
+        flex-direction: row;
+        gap: 15px;
+        margin-top: 10px;
+      }
+
+      button {
+        background-color: #7289da;
+        color: #ffffff;
+        border: none;
+        padding: 10px 15px;
+        font-size: 14px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        margin-right: 10px;
+        width: fit-content;
+      }
+
+      button:hover {
+        background-color: #5b6eae;
+      }
+
+      .copyColor {
+        background-color: #42aa42;
+      }
+
+      .copyColor:hover {
+        background-color: rgb(44, 128, 44);
+      }
+
+      .popup {
+        position: fixed;
+        width: fit-content;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: #2c2f33;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        z-index: 1000;
+        text-align: center;
+        box-sizing: border-box;
+      }
+
+      .chatdiv {
+        display: flex;
+        flex-direction: row;
+        gap: 5px;
+        box-sizing: border-box;
+      }
+
+      .chatdiv .pfp {
+        background-color: #64de85;
+        color: white;
+        padding: 5px;
+        border-radius: 50px;
+        width: 20px;
+        height: 20px;
+        text-align: center;
+      }
+
+      .input-container {
+        position: relative;
+        width: 100%;
+        display: flex;
+        background-color: #0e1621;
+        border-radius: 0 0 10px 10px;
+      }
+
+      .input-container input {
+        width: 100%;
+        padding-right: 60px;
+        height: 50px;
+        box-sizing: border-box;
+        margin-bottom: 0;
+      }
+
+      .input-container button {
+        position: absolute;
+        right: 0;
+        cursor: pointer;
+        padding: 10px 18px;
+        border-radius: 50px;
+        margin-right: 5px;
+        display: flex;
+        align-items: center;
+        align-self: center;
+      }
+
+      .datestamp {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        margin: 10px 0;
+      }
+
+      .datestamp a {
+        background-color: #182533;
+        padding: 6px 8px;
+        font-size: 12px;
+        border-radius: 50px;
+        color: #b0b0b0;
+      }
+
+      #authMessage {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        word-break: break-word;
+        white-space: normal;
+      }
+
+      #chat {
+        background-color: #0e1621;
+        border-radius: 10px 10px 0 0;
+        height: calc(100dvh - 250px);
+        overflow-y: auto;
+        padding-bottom: 10px;
+        margin-bottom: 0;
+      }
+
+      .chatdiv p {
+        padding: 5px 10px;
+        border-radius: 10px;
+        width: fit-content;
+        color: white;
+        margin-top: 0px;
+        max-width: 55%;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        word-break: break-word;
+        white-space: normal;
+      }
+
+      .tmg30 {
+        margin-top: 30px;
+      }
+
+      #chat .message {
+        margin: 5px 0;
+        font-size: 14px;
+      }
+
+      #chat .message.left {
+        text-align: left;
+      }
+
+      #chat .message.right {
+        text-align: right;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      @media screen and (max-width: 530px) {
+        h1 {
+          font-size: 1.7rem;
         }
 
         .container {
-            background-color: #23272a;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            width: 100%;
-            max-width: 600px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+          width: 100%;
+          box-shadow: 0 4px 15px rgb(0, 0, 0);
+          padding: 0;
         }
 
-        h1 {
-            text-align: center;
-            font-size: 2.0rem;
-            margin-bottom: 10px;
-            color: #7289da;
+        #hostName {
+          font-family: 'Roboto', sans-serif;
+          font-size: 14px;
+          width: 90%;
         }
 
-        p {
-            font-size: 14px;
-            color: #99aab5;
-            margin: 10px 0;
+        #createAuthBtn {
+          margin: 10px 0;
         }
 
-        input, textarea {
-            width: 100%;
-			max-width: 450px;
-            margin: 15px 0;
-            padding: 10px;
-            border: 1px solid #99aab5;
-            border-radius: 4px;
-            background-color: #2c2f33;
-            color: #ffffff;
-            font-size: 14px;
-            box-sizing: border-box;
+        #connectionStatus {
+          margin-left: 15px;
+          margin-right: 15px;
         }
-
-        input:focus, textarea:focus {
-            outline: none;
-            border-color: #7289da;
-        }
-		
-		.button-container {
-            display: flex;
-            flex-direction: row;
-			gap: 15px;
-            margin-top: 10px;
-        }
-
-        button {
-            background-color: #7289da;
-            color: #ffffff;
-            border: none;
-            padding: 10px 15px;
-            font-size: 14px;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-            margin-right: 10px;
-			width: fit-content;
-        }
-
-        button:hover {
-            background-color: #5b6eae;
-        }
-
-        .copyColor {
-            background-color: #42aa42;
-        }
-
-        .copyColor:hover {
-            background-color: rgb(44, 128, 44);
-        }
-
-        .popup {
-            position: fixed;
-			width: fit-content;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: #2c2f33;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            display: none;
-			flex-direction: column;
-			align-items: center;
-            z-index: 1000;
-            text-align: center;
-			box-sizing: border-box;
-        }
-		
-		.chatdiv {
-		    display:flex;
-			flex-direction:row;
-			gap:5px;
-			box-sizing: border-box;
-		}
-		
-		.chatdiv .pfp {
-		    background-color: #64de85;
-			color:white;
-			padding:5px;
-			border-radius: 50px;
-			width: 20px;
-			height: 20px;
-			text-align: center;
-		}
-		
-		.input-container {
-            position: relative;
-            width: 100%;
-            display: flex;
-            background-color: #0e1621;
-            border-radius: 0 0 10px 10px;
-        }
-		
-		.input-container input {
-            width: 100%;
-            padding-right: 60px; 
-            height: 40px; 
-            box-sizing: border-box;
-			margin-bottom: 0;
-        }
-
-        .input-container button {
-            position: absolute;
-            right: 0;
-            cursor: pointer;
-            padding: 10px 18px;
-            border-radius: 50px;
-            margin-right: 5px;
-            display: flex;
-            align-items: center;
-            align-self: center;
-        }
-		
-		.datestamp {
-		    width: 100%;
-			display: flex;
-			justify-content: center;
-			margin: 10px 0;
-		}
-		
-		.datestamp a {
-		    background-color: #182533;
-			padding: 6px 8px;
-			font-size: 12px;
-			border-radius: 50px;
-			color: #b0b0b0;
-		}
-		
-		#authMessage {
-		    word-wrap: break-word;
-			overflow-wrap: break-word;
-			word-break: break-word;
-			white-space: normal;
-		}
 
         #chat {
-            background-color: #0e1621;
-            border-radius: 10px 10px 0 0;
-            height: 430px;
-            overflow-y: auto;
-            padding-bottom: 10px;
-            margin-bottom: 0;
-        }
-		
-		.chatdiv p {
-		    padding: 5px 10px;
-			border-radius: 10px;
-			width: fit-content;
-			color: white;
-			margin-top: 0px;
-			max-width: 55%;
-			word-wrap: break-word;
-			overflow-wrap: break-word;
-			word-break: break-word;
-			white-space: normal;
-		}
-		
-		.tmg30 {
-		    margin-top: 30px;
-		}
-
-        #chat .message {
-            margin: 5px 0;
-            font-size: 14px;
+          border-radius: 0px;
+          height: 75vh;
         }
 
-        #chat .message.left {
-            text-align: left;
+        .input-container input {
+          height: 50px;
+          padding-top: 0;
+          font-size: 15px;
+          padding-bottom: 0;
         }
-
-        #chat .message.right {
-            text-align: right;
-        }
-
-        .hidden {
-            display: none;
-        }
-		
-		@media screen and (max-width: 530px) {
-		  h1 {
-			font-size: 1.7rem; 
-		  }
-		  .container {
-			width:100%;
-			box-shadow: 0 4px 15px rgb(0, 0, 0);
-			padding: 0;
-		  }
-		  #hostName {
-			font-family: 'Roboto', sans-serif;
-			font-size: 14px;
-			width: 90%;
-		  }
-		  #createAuthBtn {
-			margin: 10px 0;
-		  }
-		  #connectionStatus {
-			margin-left: 15px;
-			margin-right: 15px;
-		  }
-		  #chat {
-			border-radius: 0px;
-			height: 80vh;
-		  }
-		}
+      }
     </style>
-</head>
-
-<body>
+  </head>
+  <body>
     <div class="container">
-        <h1 id="peerNamea">WebRTC Chat - Peer</h1>
-		
-        <!-- Input for Peer Name -->
-        <input type="text" id="peerName" style="letter-spacing: 1px;" placeholder="Enter your name" />
-		<button id="createAuthBtn" onclick="openAuth()">Enter Host Auth Code</button>
-
-        <!-- Chat Bar Hidden Initially -->
-        <div id="chatBar" class="hidden" style="width: 100%;">
-		    <p id="connectionStatus2" style="align-self: flex-start; text-align: center; margin-top:0;"></p>
-            <div id="chat"></div>
-			<div class="input-container">
-                <input type="text" id="message" placeholder="Enter message" style="border:2px solid #0e1621; border-radius: 10px; background-color:#182533; margin-top:0; width: 100%; max-width: 100%;">
-                <button onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i></button>
-			</div>
+      <h1 id="peerNamea">WebRTC Chat - Peer</h1>
+      <!-- Input for Peer Name -->
+      <input type="text" id="peerName" style="letter-spacing: 1px;" placeholder="Enter your name" />
+      <button id="createAuthBtn" onclick="openAuth()">Enter Host Auth Code</button>
+      <!-- Chat Bar Hidden Initially -->
+      <div id="chatBar" class="hidden" style="width: 100%;">
+        <p id="connectionStatus2" style="align-self: flex-start; text-align: center; margin-top:0;"></p>
+        <div id="chat"></div>
+        <div class="input-container">
+          <input type="text" id="message" placeholder="Enter message" style="border:2px solid #0e1621; border-radius: 10px; background-color:#182533; margin-top:0; width: 100%; max-width: 100%;">
+          <button onclick="sendMessage()">
+            <i class="fa-solid fa-paper-plane" style="font-size: 20px;"></i>
+          </button>
         </div>
-
-        <!-- Connection Status -->
-        <p id="connectionStatus" style="align-self: flex-start;">Waiting for connection...</p>
-
-        <!-- Popup for Auth Code -->
-        <div id="authPopup" class="popup">
-            <p id="authMessage" class="hidden"></p>
-            <input type="text" id="authInput" placeholder="Paste here">
-			<div id="btn_ctr" class="button-container">
-                <button id="copyBtn" class="hidden" onclick="copyAuthCode()">Copy</button>
-                <button id="acceptBtn" onclick="acceptAuthCode()">Confirm</button>
-                <button onclick="closePopup()">Close</button>
-			</div>
+      </div>
+      <!-- Connection Status -->
+      <p id="connectionStatus" style="align-self: flex-start;">Waiting for connection...</p>
+      <!-- Popup for Auth Code -->
+      <div id="authPopup" class="popup">
+        <p id="authMessage">Paste Host Auth Code</p>
+        <input type="text" id="authInput" placeholder="Paste here">
+        <div id="btn_ctr" class="button-container">
+          <button id="copyBtn" class="hidden" onclick="copyAuthCode()">Copy</button>
+          <button id="acceptBtn" onclick="acceptAuthCode()">Confirm</button>
+          <button onclick="closePopup()">Close</button>
         </div>
+      </div>
     </div>
-
     <script>
-	    let authCode = '';
-        let localConnection, receiveChannel, peerName, offerBase64, statusCheckInterval;
-        const chatBar = document.getElementById('chatBar');
-        const createAuthBtn = document.getElementById('createAuthBtn');
-        const authPopup = document.getElementById('authPopup');
-        const authMessage = document.getElementById('authMessage');
-        const authInput = document.getElementById('authInput');
-        const buttonContainer = document.getElementById('btn_ctr');
-        const copyBtn = document.getElementById('copyBtn');
-        const acceptBtn = document.getElementById('acceptBtn');
-        const connectionStatus = document.getElementById('connectionStatus');
-        const connectionStatus2 = document.getElementById('connectionStatus2');
-        const peerNameInput = document.getElementById('peerName');
-        const peerNamea = document.getElementById('peerNamea');
-        const messageInput = document.getElementById('message');
-        const chat = document.getElementById('chat');
-        let hostName = 'Host';
-		
-        function copyAuthCode() {
-            navigator.clipboard.writeText(authCode);
-			copyBtn.classList.add('copyColor');
-			copyBtn.textContent = "Copied";
-			setTimeout(() => {
-			  copyBtn.classList.remove('copyColor');
-			  copyBtn.textContent = "Copy";
-			}, 3000);
+      let authCode = '';
+      let localConnection, receiveChannel, peerName, offerBase64, statusCheckInterval;
+      const chatBar = document.getElementById('chatBar');
+      const createAuthBtn = document.getElementById('createAuthBtn');
+      const authPopup = document.getElementById('authPopup');
+      const authMessage = document.getElementById('authMessage');
+      const authInput = document.getElementById('authInput');
+      const buttonContainer = document.getElementById('btn_ctr');
+      const copyBtn = document.getElementById('copyBtn');
+      const acceptBtn = document.getElementById('acceptBtn');
+      const connectionStatus = document.getElementById('connectionStatus');
+      const connectionStatus2 = document.getElementById('connectionStatus2');
+      const peerNameInput = document.getElementById('peerName');
+      const peerNamea = document.getElementById('peerNamea');
+      const messageInput = document.getElementById('message');
+      const chat = document.getElementById('chat');
+      let hostName = 'Host';
+
+      function copyAuthCode() {
+        navigator.clipboard.writeText(authCode);
+        copyBtn.classList.add('copyColor');
+        copyBtn.textContent = "Copied";
+        setTimeout(() => {
+          copyBtn.classList.remove('copyColor');
+          copyBtn.textContent = "Copy";
+        }, 3000);
+      }
+
+      function closePopup() {
+        authPopup.style.display = 'none';
+      }
+
+      function sanitizeHTML(input) {
+        const div = document.createElement('div');
+        div.textContent = input;
+        return div.innerHTML;
+      }
+
+      function safeDecode(base64String) {
+        try {
+          return atob(base64String);
+        } catch (e) {
+          alert('Invalid data provided.');
+          throw e;
         }
+      }
 
-        function closePopup() {
-            authPopup.style.display = 'none';
+      function safeEncode(json) {
+        return btoa(JSON.stringify(json));
+      }
+
+      function getToDate() {
+        var now = new Date();
+        var monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        var day = now.getDate();
+        var month = monthNames[now.getMonth()];
+        var year = now.getFullYear();
+        var timestamp = month + ' ' + day + ', ' + year;
+        return timestamp;
+      }
+
+      function getDate() {
+        var now = new Date();
+        var hours = now.getHours();
+        var minutes = now.getMinutes();
+        var ampm = hours >= 12 ? 'PM' : 'AM';
+        var formattedHours = hours % 12 || 12;
+        var formattedMinutes = minutes < 10 ? '0' + minutes : minutes;
+        var timestamp = formattedHours + ':' + formattedMinutes + ' ' + ampm;
+        return timestamp;
+      }
+
+      function logDateAtMidnight() {
+        function waitForMidnight() {
+          var now = new Date();
+          var msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0) - now;
+          setTimeout(function() {
+            var timestamp = getToDate();
+            chat.innerHTML += `<div class='datestamp'><a>${timestamp}</a></div>`;
+            waitForMidnight();
+          }, msUntilMidnight);
         }
+        var timestamp = getToDate();
+        chat.innerHTML += `<div class='datestamp'><a>${timestamp}</a></div>`;
+        waitForMidnight();
+      }
 
-        function sanitizeHTML(input) {
-            const div = document.createElement('div');
-            div.textContent = input;
-            return div.innerHTML;
+      function monitorSendChannel() {
+        if (receiveChannel.readyState !== 'open') {
+          connectionStatus2.textContent = "Disconnected from Peer ❗";
         }
+      }
 
-        function safeDecode(base64String) {
-            try {
-                return atob(base64String);
-            } catch (e) {
-                alert('Invalid data provided.');
-                throw e;
-            }
+      function openAuth() {
+        peerName = sanitizeHTML(peerNameInput.value.trim());
+        if (!peerName) {
+          alert('Please enter your name');
+          return;
         }
-
-        function safeEncode(json) {
-            return btoa(JSON.stringify(json));
+        authPopup.style.display = 'flex';
+      }
+      async function acceptAuthCode() {
+        offerBase64 = authInput.value.trim();
+        if (!offerBase64) {
+          alert('Invalid or Empty Auth Code');
+          closePopup();
+          return;
         }
-		
-		function getToDate() {
-			var now = new Date();
-			var monthNames = [
-				"January", "February", "March", "April", "May", "June",
-				"July", "August", "September", "October", "November", "December"
-			];
-			var day = now.getDate();  
-			var month = monthNames[now.getMonth()];  
-			var year = now.getFullYear();
-			var timestamp = month + ' ' + day + ', ' + year;
-			return timestamp;
-		}
-		
-		function getDate() {
-		    var now = new Date();
-            var hours = now.getHours();
-            var minutes = now.getMinutes();
-            var ampm = hours >= 12 ? 'PM' : 'AM';
-            var formattedHours = hours % 12 || 12;  
-            var formattedMinutes = minutes < 10 ? '0' + minutes : minutes;
-            var timestamp = formattedHours + ':' + formattedMinutes + ' ' + ampm;
-			return timestamp;
-	    }
-		
-		function logDateAtMidnight() {
-			function waitForMidnight() {
-				var now = new Date();
-				var msUntilMidnight = new Date(
-					now.getFullYear(),
-					now.getMonth(),
-					now.getDate() + 1,
-					0, 0, 0, 0
-				) - now;
-
-				setTimeout(function () {
-				    var timestamp = getToDate();
-					chat.innerHTML += `<div class='datestamp'><a>${timestamp}</a></div>`
-					waitForMidnight();  
-				}, msUntilMidnight);
-			}
-			var timestamp = getToDate();
-			chat.innerHTML += `<div class='datestamp'><a>${timestamp}</a></div>`
-			waitForMidnight();
-		}
-		
-        function monitorSendChannel() {
-            if (receiveChannel.readyState !== 'open') {
-                connectionStatus2.textContent = "Disconnected from Peer ❗";
-            }
-        }
-
-        function openAuth() {
-            peerName = sanitizeHTML(peerNameInput.value.trim());
-            if (!peerName) {
-                alert('Please enter your name');
-                return;
-            }
-			authPopup.style.display = 'flex';
-		}
-
-        async function acceptAuthCode() {
-            offerBase64 = authInput.value.trim();
-            if (!offerBase64) {
-                alert('Invalid or Empty Auth Code');
-				closePopup();
-                return;
-            }
-
-            const offer = JSON.parse(safeDecode(offerBase64));
-            const config = {
-                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-            };
-            localConnection = new RTCPeerConnection(config);
-
-            localConnection.ondatachannel = (event) => {
-                receiveChannel = event.channel;
-
-                receiveChannel.onopen = () => {
-				    connectionStatus.style.display = 'none';
-                    connectionStatus2.textContent = `Connected to ${hostName} ✅`;
-					statusCheckInterval = setInterval(monitorSendChannel, 1000);
-                    receiveChannel.send(`NAME:${peerName}`);
-				    chatBar.classList.remove('hidden');
-					createAuthBtn.style.display = 'none';
-					logDateAtMidnight();
-                };
-
-                receiveChannel.onmessage = (event) => {
-                    const sanitizedData = sanitizeHTML(event.data);
-                    if (sanitizedData.startsWith('NAME:')) {
-                        hostName = sanitizedData.substring(5);
-						connectionStatus.style.display = 'none';
-                        connectionStatus2.textContent = `Connected to ${hostName} ✅`;
-                    } else {
-					    timestamp = getDate();
-                        chat.innerHTML += `<div class='chatdiv' style='padding: 0 10px;'><a class='pfp'>${hostName.charAt(0).toUpperCase()}</a><p style='background-color: #182533;'><a style='color:#64de85;'><b>${hostName}</b></a><a style="font-size: 11px;color: grey;margin: 0 10px;">${timestamp}</a><br>${sanitizedData}</p></div>`;
-                    }
-                };
-
-                receiveChannel.onclose = () => {
-				    clearInterval(statusCheckInterval);
-                    connectionStatus2.textContent = "Disconnected from Host ❗";
-                };
-            };
-
-            localConnection.onicecandidate = ({ candidate }) => {
-                if (candidate) {
-                    authCode = safeEncode(localConnection.localDescription);
-                }
-            };
-
-            await localConnection.setRemoteDescription(offer);
-            const answer = await localConnection.createAnswer();
-            await localConnection.setLocalDescription(answer);
-            authCode = safeEncode(answer);
-			authMessage.textContent = "Auth Code generated! Click the Copy button.";
-			createAuthBtn.disabled = true;
-			createAuthBtn.classList.add('tmg30');
-			peerNameInput.style.display = 'none';
-			const pname = sanitizeHTML(peerNameInput.value.trim());
-			peerNamea.textContent = `WebRTC Chat - Peer: ${pname}`;
-			authInput.classList.add('hidden');
-			acceptBtn.classList.add('hidden');
-			copyBtn.classList.remove('hidden');
-			authMessage.classList.remove('hidden');
-        }
-
-        function sendMessage() {
-            if (receiveChannel && receiveChannel.readyState === 'open') {
-                const message = sanitizeHTML(messageInput.value.trim());
-                if (message) {
-				    timestamp = getDate();
-                    chat.innerHTML += `<div class='chatdiv' style='justify-content: end;padding: 0 10px;'><p style='background-color: #376593;'><a style="color:#fff;"><b>You</b></a><a style="font-size: 11px;color: #bfbfbf;margin: 0 10px;">${timestamp}</a><br>${message}</p></div>`;
-					chat.scrollTop = chat.scrollHeight;
-                    receiveChannel.send(message);
-                    messageInput.value = "";
-                }
+        const offer = JSON.parse(safeDecode(offerBase64));
+        const config = {
+          iceServers: [{
+            urls: 'stun:stun.l.google.com:19302'
+          }]
+        };
+        localConnection = new RTCPeerConnection(config);
+        localConnection.ondatachannel = (event) => {
+          receiveChannel = event.channel;
+          receiveChannel.onopen = () => {
+            connectionStatus.style.display = 'none';
+            connectionStatus2.textContent = `Connected to ${hostName} ✅`;
+            statusCheckInterval = setInterval(monitorSendChannel, 1000);
+            receiveChannel.send(`NAME:${peerName}`);
+            chatBar.classList.remove('hidden');
+            createAuthBtn.style.display = 'none';
+            logDateAtMidnight();
+          };
+          receiveChannel.onmessage = (event) => {
+            const sanitizedData = sanitizeHTML(event.data);
+            if (sanitizedData.startsWith('NAME:')) {
+              hostName = sanitizedData.substring(5);
+              connectionStatus.style.display = 'none';
+              connectionStatus2.textContent = `Connected to ${hostName} ✅`;
             } else {
-                console.error('Data channel is not open');
+              timestamp = getDate();
+              chat.innerHTML += `<div class='chatdiv' style='padding: 0 10px;'><a class='pfp'>${hostName.charAt(0).toUpperCase()}</a><p style='background-color: #182533;'><a style='color:#64de85;'><b>${hostName}</b></a><a style="font-size: 11px;color: grey;margin: 0 10px;">${timestamp}</a><br>${sanitizedData}</p></div>`;
             }
-        }
-    </script>
-</body>
+          };
+          receiveChannel.onclose = () => {
+            clearInterval(statusCheckInterval);
+            connectionStatus2.textContent = "Disconnected from Host ❗";
+          };
+        };
+        localConnection.onicecandidate = ({
+          candidate
+        }) => {
+          if (candidate) {
+            authCode = safeEncode(localConnection.localDescription);
+          }
+        };
+        await localConnection.setRemoteDescription(offer);
+        const answer = await localConnection.createAnswer();
+        await localConnection.setLocalDescription(answer);
+        authCode = safeEncode(answer);
+        authMessage.textContent = "Auth Code generated! Click the Copy button.";
+        createAuthBtn.disabled = true;
+        createAuthBtn.classList.add('tmg30');
+        peerNameInput.style.display = 'none';
+        const pname = sanitizeHTML(peerNameInput.value.trim());
+        peerNamea.textContent = `WebRTC Chat - Peer: ${pname}`;
+        authInput.classList.add('hidden');
+        acceptBtn.classList.add('hidden');
+        copyBtn.classList.remove('hidden');
+      }
 
+      function sendMessage() {
+        if (receiveChannel && receiveChannel.readyState === 'open') {
+          const message = sanitizeHTML(messageInput.value.trim());
+          if (message) {
+            timestamp = getDate();
+            chat.innerHTML += `<div class='chatdiv' style='justify-content: end;padding: 0 10px;'><p style='background-color: #376593;'><a style="color:#fff;"><b>You</b></a><a style="font-size: 11px;color: #bfbfbf;margin: 0 10px;">${timestamp}</a><br>${message}</p></div>`;
+            chat.scrollTop = chat.scrollHeight;
+            receiveChannel.send(message);
+            messageInput.value = "";
+          }
+        } else {
+          console.error('Data channel is not open');
+        }
+      }
+    </script>
+  </body>
 </html>
