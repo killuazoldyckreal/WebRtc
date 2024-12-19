@@ -145,7 +145,7 @@
         padding-right: 60px;
         box-sizing: border-box;
         margin-bottom: 0;
-        overflow-y:hidden;
+        overflow-y: auto;
       }
 
       .input-container button {
@@ -287,12 +287,17 @@
           bottom: 0;
         }
 
-        .input-container input {
+        .input-container textarea {
           height: 65px;
           padding-top: 0;
           padding-right: 75px;
           font-size: 17px;
           padding-bottom: 0;
+          scrollbar-width: none;
+        }
+
+        .input-container textarea::-webkit-scrollbar {
+          display: none;
         }
       }
     </style>
@@ -326,26 +331,6 @@
         </div>
       </div>
     </div>
-    <script>
-      const textarea = document.getElementById('dynamicTextarea');
-      // Function to adjust the rows of the textarea dynamically
-      function adjustHeight() {
-        // Reset the height to get the correct scrollHeight
-        textarea.style.height = 'auto';
-        // Get the scrollHeight (total height of the content)
-        const scrollHeight = textarea.scrollHeight;
-        // Set the maximum rows to 4
-        const maxRows = 4;
-        // Calculate the number of rows needed, but limit it to 4
-        const rows = Math.min(Math.ceil(scrollHeight / 20), maxRows);
-        // Update the rows property
-        textarea.rows = rows;
-      }
-      // Listen for input events to adjust height as the user types
-      textarea.addEventListener('input', adjustHeight);
-      // Initial adjustment in case there is pre-filled content
-      adjustHeight();
-    </script>
     <script>
       let authCode = '';
       let localConnection, sendChannel, statusCheckInterval;
