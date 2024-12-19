@@ -235,11 +235,13 @@
 
         .container {
           width: 100%;
+          height: 100dvh;
+          justify-content: center;
           box-shadow: 0 4px 15px rgb(0, 0, 0);
           padding: 0;
         }
 
-        #hostName {
+        #peerName {
           font-family: 'Roboto', sans-serif;
           font-size: 14px;
           width: 90%;
@@ -254,13 +256,30 @@
           margin-right: 15px;
         }
 
+        #chatBar {
+          flex-grow: 1;
+          flex-direction: column;
+          position: relative;
+        }
+
+        #connectionStatus2 {
+          width: 100%;
+        }
+
         #chat {
           border-radius: 0px;
-          height: 72dvh;
+          flex-grow: 1;
+          margin-bottom: 65px;
         }
         
         #sendbtn {
           font-size: 30px;
+        }
+
+        .input-container {
+          position: absolute;
+          height: 65px;
+          bottom: 0;
         }
 
         .input-container input {
@@ -427,6 +446,7 @@
             statusCheckInterval = setInterval(monitorSendChannel, 1000);
             receiveChannel.send(`NAME:${peerName}`);
             chatBar.classList.remove('hidden');
+            chatBar.style.display = 'flex';
             createAuthBtn.style.display = 'none';
             logDateAtMidnight();
           };
