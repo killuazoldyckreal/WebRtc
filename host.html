@@ -319,7 +319,7 @@
         <p id="connectionStatus2" style="align-self: flex-start; text-align: center; margin-top:0;"></p>
         <div id="chat"></div>
         <div class="input-container">
-          <textarea rows="1" id="message" placeholder="Enter message" style="resize: none; border:2px solid #0e1621; border-radius: 10px; background-color:#182533; margin:0; width: 100%; max-width: 100%;"></textarea>
+          <textarea rows="1" maxlength="500" id="message" placeholder="Enter message" style="resize: none; border:2px solid #0e1621; border-radius: 10px; background-color:#182533; margin:0; width: 100%; max-width: 100%;"></textarea>
           <button onclick="sendMessage()">
             <i id="sendbtn" class="fa-solid fa-paper-plane"></i>
           </button>
@@ -478,7 +478,7 @@
           logDateAtMidnight();
         };
         sendChannel.onmessage = (event) => {
-          const sanitizedData = sanitizeHTML(event.data);
+          const sanitizedData = sanitizeHTML(event.data).replace(/<br>/g, '\n');
           if (sanitizedData.startsWith('NAME:')) {
             peerName = sanitizedData.substring(5);
             connectionStatus.style.display = 'none';
@@ -518,7 +518,7 @@
 
       function sendMessage() {
         if (sendChannel.readyState === 'open') {
-          const message = sanitizeHTML(messageInput.value.trim());
+          const message = sanitizeHTML(messageInput.value.trim().replace(/\n/g, '<br>'));
           if (message) {
             timestamp = getDate();
             chat.innerHTML += `<div class='chatdiv' style='justify-content: end;padding: 0 10px;'><p style='background-color: #376593;'><a style="color:#fff;"><b>You</b></a><a style="font-size: 11px;color: #bfbfbf;margin: 0 10px;">${timestamp}</a><br>${message}</p></div>`;
