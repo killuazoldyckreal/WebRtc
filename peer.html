@@ -139,12 +139,19 @@
         border-radius: 0 0 10px 10px;
       }
 
-      .input-container input {
+      .input-container textarea {
         width: 100%;
+        padding:13px;
         padding-right: 60px;
         height: 50px;
         box-sizing: border-box;
         margin-bottom: 0;
+        overflow-y: auto;
+        scrollbar-width: none;
+      }
+
+      .input-container textarea::-webkit-scrollbar {
+        display: none;
       }
 
       .input-container button {
@@ -285,12 +292,16 @@
           bottom: 0;
         }
 
-        .input-container input {
-          height: 65px;
+        .input-container textarea {
           padding-top: 0;
           padding-right: 75px;
           font-size: 17px;
           padding-bottom: 0;
+          scrollbar-width: none;
+        }
+
+        .input-container textarea::-webkit-scrollbar {
+          display: none;
         }
       }
     </style>
@@ -306,7 +317,7 @@
         <p id="connectionStatus2" style="align-self: flex-start; text-align: center; margin-top:0;"></p>
         <div id="chat"></div>
         <div class="input-container">
-          <input type="text" id="message" placeholder="Enter message" style="border:2px solid #0e1621; border-radius: 10px; background-color:#182533; margin-top:0; width: 100%; max-width: 100%;">
+          <textarea rows="1" id="message" placeholder="Enter message" style="resize: none; border:2px solid #0e1621; border-radius: 10px; background-color:#182533; margin-top:0; width: 100%; max-width: 100%;"></textarea>
           <button onclick="sendMessage()">
             <i id="sendbtn" class="fa-solid fa-paper-plane"></i>
           </button>
