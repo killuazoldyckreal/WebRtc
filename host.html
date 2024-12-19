@@ -141,6 +141,7 @@
 
       .input-container textarea {
         width: 100%;
+        height: 65px;
         padding:13px;
         padding-right: 60px;
         box-sizing: border-box;
@@ -293,10 +294,10 @@
         }
 
         .input-container textarea {
-          padding-top: 0;
+          padding-top: 20px;
           padding-right: 75px;
           font-size: 17px;
-          padding-bottom: 0;
+          padding-bottom: 20px;
           scrollbar-width: none;
         }
 
@@ -353,6 +354,11 @@
       const messageInput = document.getElementById('message');
       const chat = document.getElementById('chat');
       let peerName = 'Peer';
+      
+      messageInput.addEventListener('input', () => {
+        messageInput.scrollTop = messageInput.scrollHeight;
+      });
+
 
       function copyAuthCode() {
         navigator.clipboard.writeText(authCode);
