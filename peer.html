@@ -293,10 +293,11 @@
         }
 
         .input-container textarea {
-          padding-top: 0;
+          padding-top: 20px;
           padding-right: 75px;
+          height: 65px;
           font-size: 17px;
-          padding-bottom: 0;
+          padding-bottom: 20px;
           scrollbar-width: none;
         }
 
@@ -354,6 +355,10 @@
       const messageInput = document.getElementById('message');
       const chat = document.getElementById('chat');
       let hostName = 'Host';
+      
+      messageInput.addEventListener('input', () => {
+        messageInput.scrollTop = messageInput.scrollHeight;
+      });
 
       function copyAuthCode() {
         navigator.clipboard.writeText(authCode);
