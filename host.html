@@ -146,6 +146,11 @@
         box-sizing: border-box;
         margin-bottom: 0;
         overflow-y: auto;
+        scrollbar-width: none;
+      }
+
+      .input-container textarea::-webkit-scrollbar {
+        display: none;
       }
 
       .input-container button {
@@ -288,7 +293,6 @@
         }
 
         .input-container textarea {
-          height: 65px;
           padding-top: 0;
           padding-right: 75px;
           font-size: 17px;
