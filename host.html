@@ -360,6 +360,25 @@
         messageInput.scrollTop = messageInput.scrollHeight;
       });
 
+      function autoScrollToBottom() {
+        chat.scrollTop = chat.scrollHeight;
+      }
+
+      function observeChatChanges() {
+        const observer = new MutationObserver(() => {
+          autoScrollToBottom();
+        });
+        observer.observe(chat, { childList: true });
+      }
+
+      function observeScreenHeightChanges() {
+        window.addEventListener('resize', () => {
+          autoScrollToBottom();
+        });
+      }
+
+      observeChatChanges();
+      observeScreenHeightChanges();
 
       function copyAuthCode() {
         navigator.clipboard.writeText(authCode);
