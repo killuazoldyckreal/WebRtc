@@ -509,7 +509,7 @@
 
       function sendMessage() {
         if (receiveChannel && receiveChannel.readyState === 'open') {
-          const message = sanitizeHTML(messageInput.value.trim().replace(/\n/g, '<br>'));
+          const message = messageInput.value.trim().replace(/\n/g, '<br>');
           if (message) {
             timestamp = getDate();
             chat.innerHTML += `<div class='chatdiv' style='justify-content: end;padding: 0 10px;'><p style='background-color: #376593;'><a style="color:#fff;"><b>You</b></a><a style="font-size: 11px;color: #bfbfbf;margin: 0 10px;">${timestamp}</a><br>${message}</p></div>`;
