@@ -16,9 +16,12 @@ This software, **WebRTC Chat**, is provided solely for **educational and non-com
 - **No Misrepresentation**: You must not misrepresent the origin or ownership of this software.
 
 ## 3. Attribution
+This project was inspired by the original WebRTC Chat by [Ronnie Reagan](https://ronnie-reagan.github.io/WebRTC-Chat/).
+
 When using or sharing this project, you must include the following attribution:
 ```
 WebRTC Chat by killuazoldyckreal (https://github.com/killuazoldyckreal/WebRtc)
+Inspired by the original WebRTC Chat by Ronnie Reagan (https://ronnie-reagan.github.io/WebRTC-Chat/)
 Licensed for educational and non-commercial use only.
 ```
 
@@ -35,4 +38,3 @@ For any inquiries regarding this license, please contact [killuazoldyckreal](htt
 ---
 
 By using this software, you agree to abide by the terms outlined in this license.
-
