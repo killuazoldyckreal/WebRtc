@@ -64,6 +64,148 @@ function setStatus(el, type, label) {
   el.innerHTML = `${dot}<span>${label}</span>`;
 }
 
+/* ── Format seconds → m:ss ── */
+function formatDuration(secs) {
+  if (!isFinite(secs) || secs < 0) return '0:00';
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  return `${m}:${s < 10 ? '0' + s : s}`;
+}
+
+/* ── Build audio message node ── */
+function buildAudioNode(dataURL, filename, side) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'audio-msg';
+
+  const audio = document.createElement('audio');
+  audio.src = dataURL;
+  audio.preload = 'metadata';
+
+  // Play/pause button
+  const playBtn = document.createElement('button');
+  playBtn.className = 'audio-play-btn';
+  playBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M8 5v14l11-7z"/></svg>`;
+
+  // Waveform / seek track
+  const trackWrap = document.createElement('div');
+  trackWrap.className = 'audio-track-wrap';
+
+  const track = document.createElement('div');
+  track.className = 'audio-track';
+
+  const progress = document.createElement('div');
+  progress.className = 'audio-progress';
+
+  const thumb = document.createElement('div');
+  thumb.className = 'audio-thumb';
+
+  track.appendChild(progress);
+  track.appendChild(thumb);
+  trackWrap.appendChild(track);
+
+  // Time display
+  const timeEl = document.createElement('span');
+  timeEl.className = 'audio-time';
+  timeEl.textContent = '0:00';
+
+  // Duration display (shown after metadata loads)
+  const durEl = document.createElement('span');
+  durEl.className = 'audio-dur';
+  durEl.textContent = '';
+
+  audio.addEventListener('loadedmetadata', () => {
+    durEl.textContent = formatDuration(audio.duration);
+    timeEl.textContent = '0:00';
+  });
+
+  // Play/pause toggle
+  let playing = false;
+  playBtn.addEventListener('click', () => {
+    if (playing) {
+      audio.pause();
+    } else {
+      // pause all other audios on page
+      document.querySelectorAll('.audio-msg audio').forEach(a => {
+        if (a !== audio) { a.pause(); a.dispatchEvent(new Event('_tc_pause')); }
+      });
+      audio.play();
+    }
+  });
+
+  audio.addEventListener('play', () => {
+    playing = true;
+    playBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
+  });
+  audio.addEventListener('pause', () => {
+    playing = false;
+    playBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M8 5v14l11-7z"/></svg>`;
+  });
+  audio.addEventListener('ended', () => {
+    playing = false;
+    playBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M8 5v14l11-7z"/></svg>`;
+    progress.style.width = '0%';
+    thumb.style.left = '0%';
+    timeEl.textContent = '0:00';
+  });
+  audio.addEventListener('_tc_pause', () => {
+    playing = false;
+    playBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M8 5v14l11-7z"/></svg>`;
+  });
+
+  // Progress update
+  audio.addEventListener('timeupdate', () => {
+    const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
+    progress.style.width = pct + '%';
+    thumb.style.left = pct + '%';
+    timeEl.textContent = formatDuration(audio.currentTime);
+  });
+
+  // Seek on click
+  track.addEventListener('click', (e) => {
+    const rect = track.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const pct = Math.max(0, Math.min(1, x / rect.width));
+    if (audio.duration) audio.currentTime = pct * audio.duration;
+  });
+
+  // Drag seek
+  let dragging = false;
+  thumb.addEventListener('mousedown', (e) => { dragging = true; e.preventDefault(); });
+  thumb.addEventListener('touchstart', (e) => { dragging = true; }, { passive: true });
+  document.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const rect = track.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const pct = Math.max(0, Math.min(1, x / rect.width));
+    if (audio.duration) audio.currentTime = pct * audio.duration;
+  });
+  document.addEventListener('touchmove', (e) => {
+    if (!dragging) return;
+    const rect = track.getBoundingClientRect();
+    const x = e.touches[0].clientX - rect.left;
+    const pct = Math.max(0, Math.min(1, x / rect.width));
+    if (audio.duration) audio.currentTime = pct * audio.duration;
+  }, { passive: true });
+  document.addEventListener('mouseup', () => { dragging = false; });
+  document.addEventListener('touchend', () => { dragging = false; });
+
+  const infoRow = document.createElement('div');
+  infoRow.className = 'audio-info-row';
+  infoRow.appendChild(timeEl);
+  infoRow.appendChild(durEl);
+
+  const bodyCol = document.createElement('div');
+  bodyCol.className = 'audio-body-col';
+  bodyCol.appendChild(trackWrap);
+  bodyCol.appendChild(infoRow);
+
+  wrapper.appendChild(audio);
+  wrapper.appendChild(playBtn);
+  wrapper.appendChild(bodyCol);
+
+  return wrapper;
+}
+
 /* ── Build a message row ── */
 function buildMessageRow(content, side, senderName, isHTML = false) {
   const ch    = (senderName || '?')[0].toUpperCase();
@@ -88,7 +230,6 @@ function buildMessageRow(content, side, senderName, isHTML = false) {
     }
   }
 
-  // Timestamp (not shown separately for media — it goes inside the bubble below the image)
   if (!isMedia) {
     const timeEl = document.createElement('div');
     timeEl.className = 'bubble-time';
@@ -97,14 +238,12 @@ function buildMessageRow(content, side, senderName, isHTML = false) {
       : '');
     bubble.appendChild(timeEl);
   } else {
-    // For media, add a small time label underneath outside the bubble
     const timeEl = document.createElement('div');
     timeEl.style.cssText = 'font-size:10px;color:rgba(170,197,217,0.6);margin-top:2px;' +
       (side === 'sent' ? 'text-align:right;padding-right:4px;' : 'padding-left:4px;');
     timeEl.innerHTML = getTime() + (side === 'sent'
       ? ` <svg style="display:inline;vertical-align:-1px" width="12" height="12" viewBox="0 0 24 24" fill="rgba(255,255,255,0.5)"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`
       : '');
-    // Will be appended to col below
     bubble._timeEl = timeEl;
   }
 
@@ -166,15 +305,108 @@ function fileToDataURL(file) {
   });
 }
 
-/* ── Media message builder (images only) ── */
+/* ════════════════════════════════════
+   CHUNKED TRANSFER over RTCDataChannel
+   ════════════════════════════════════ */
+const CHUNK_SIZE = 16 * 1024; // 16 KB
+
+/**
+ * Send a file over an RTCDataChannel using 16 KB chunks.
+ * Wire format:
+ *   - header frame: JSON  { __tc_chunk_start: true, id, type, name, totalChunks }
+ *   - data frames:  JSON  { __tc_chunk: true, id, index, data: <base64 string> }
+ *   - end frame:    JSON  { __tc_chunk_end: true, id }
+ */
+async function sendFileChunked(channel, file) {
+  const id = Date.now() + '_' + Math.random().toString(36).slice(2);
+  const dataURL = await fileToDataURL(file);
+  // Strip data URL prefix to get raw base64
+  const b64 = dataURL.split(',')[1];
+  const mimeType = dataURL.split(';')[0].split(':')[1];
+
+  // Split into chunks
+  const chunks = [];
+  for (let i = 0; i < b64.length; i += CHUNK_SIZE) {
+    chunks.push(b64.slice(i, i + CHUNK_SIZE));
+  }
+
+  // Header
+  channel.send(JSON.stringify({
+    __tc_chunk_start: true,
+    id, type: mimeType, name: file.name, totalChunks: chunks.length
+  }));
+
+  // Data chunks — throttled to avoid overflowing the buffer
+  for (let i = 0; i < chunks.length; i++) {
+    // Wait if buffer is getting full
+    while (channel.bufferedAmount > 1024 * 1024) {
+      await new Promise(r => setTimeout(r, 20));
+    }
+    channel.send(JSON.stringify({ __tc_chunk: true, id, index: i, data: chunks[i] }));
+  }
+
+  // End
+  channel.send(JSON.stringify({ __tc_chunk_end: true, id }));
+
+  return { id, type: mimeType, name: file.name, dataURL };
+}
+
+/**
+ * ChunkedReceiver — handles incoming frames and reassembles files.
+ * Usage:
+ *   const recv = new ChunkedReceiver(onComplete);
+ *   recv.feed(rawString);   // call from channel.onmessage
+ *   onComplete({ id, type, name, dataURL }) fires when a file is ready.
+ */
+class ChunkedReceiver {
+  constructor(onComplete) {
+    this._onComplete = onComplete;
+    this._pending = {}; // id → { type, name, totalChunks, chunks[] }
+  }
+
+  feed(raw) {
+    let obj;
+    try { obj = JSON.parse(raw); } catch(_) { return false; }
+
+    if (obj.__tc_chunk_start) {
+      this._pending[obj.id] = {
+        type: obj.type, name: obj.name,
+        totalChunks: obj.totalChunks, chunks: new Array(obj.totalChunks)
+      };
+      return true;
+    }
+
+    if (obj.__tc_chunk) {
+      const p = this._pending[obj.id];
+      if (p) p.chunks[obj.index] = obj.data;
+      return true;
+    }
+
+    if (obj.__tc_chunk_end) {
+      const p = this._pending[obj.id];
+      if (!p) return true;
+      const b64 = p.chunks.join('');
+      const dataURL = `data:${p.type};base64,${b64}`;
+      delete this._pending[obj.id];
+      this._onComplete({ id: obj.id, type: p.type, name: p.name, dataURL });
+      return true;
+    }
+
+    return false; // not a chunk frame
+  }
+}
+
+/* ── Media message builder (images / audio) ── */
 async function prepareMediaPayload(file) {
   const dataURL = await fileToDataURL(file);
   const type = file.type;
-  const wire = JSON.stringify({ __tc_media: true, type, name: file.name, data: dataURL });
-  return { wire, type, name: file.name, dataURL };
+  return { type, name: file.name, dataURL };
 }
 
-function buildMediaNode(type, dataURL, filename) {
+function buildMediaNode(type, dataURL, filename, side) {
+  if (type.startsWith('audio/')) {
+    return buildAudioNode(dataURL, filename, side);
+  }
   if (type.startsWith('image/')) {
     const img = document.createElement('img');
     img.src = dataURL;
@@ -191,7 +423,7 @@ function buildMediaNode(type, dataURL, filename) {
   return a;
 }
 
-/* ── Parse incoming wire message ── */
+/* ── Parse incoming wire message (legacy small messages) ── */
 function parseIncoming(raw) {
   try {
     const obj = JSON.parse(raw);
