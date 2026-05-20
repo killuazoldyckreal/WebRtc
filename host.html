@@ -9,7 +9,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   <link rel="stylesheet" href="styles.css">
   <style>
-    /* Host accent: blue */
     .tg-input:focus   { border-color: #2196f3; }
     .tg-textarea:focus{ border-color: #2196f3; }
     .msg-textarea:focus { border-color: #2196f3; }
@@ -30,17 +29,14 @@
         <p class="text-xs text-[#6d9ab5]">You are the Host</p>
       </div>
     </div>
-
     <div class="flex flex-col gap-2">
       <label class="text-xs font-bold text-[#6d9ab5] uppercase tracking-widest">Your Name</label>
       <input id="hostName" class="tg-input" placeholder="e.g. Alice" maxlength="32" autocomplete="off"/>
     </div>
-
     <button id="createAuthBtn" onclick="startHost()" class="btn-primary py-3 rounded-xl text-sm w-full flex items-center justify-center gap-2">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
       Generate Invite Code
     </button>
-
     <a href="index.html" class="text-center text-xs text-[#4e7a96] hover:text-[#6d9ab5] transition-colors">← Back to home</a>
   </div>
 </div>
@@ -66,23 +62,33 @@
   <div id="messages"></div>
 
   <!-- Emoji picker -->
-  <div id="emoji-picker-container" class="hidden" style="position:absolute;bottom:70px;left:12px;z-index:100;"></div>
+  <div id="emoji-picker-container" class="hidden"></div>
 
-  <div id="input-area" style="position:relative;">
-    <!-- Attach bar -->
-    <div id="attach-bar">
-      <!-- Emoji -->
-      <button class="attach-btn" id="emoji-btn" title="Emoji">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="#aac5d9"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>
-      </button>
-      <!-- Image / GIF -->
-      <button class="attach-btn" id="img-btn" title="Image / GIF">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="#aac5d9"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
-      </button>
-    </div>
+  <!-- Attachment popup menu -->
+  <div id="attach-menu" class="hidden">
+    <button class="attach-menu-item" id="menu-emoji-btn">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="#f9ca24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>
+      Emoji
+    </button>
+    <button class="attach-menu-item" id="menu-img-btn">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="#4fc3f7"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+      Image / GIF
+    </button>
+    <button class="attach-menu-item" id="menu-audio-btn">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="#a29bfe"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+      Audio File
+    </button>
+  </div>
 
-    <!-- Hidden file input -->
-    <input type="file" id="img-input" accept="image/*,.gif" class="hidden"/>
+  <div id="input-area">
+    <!-- Hidden file inputs -->
+    <input type="file" id="img-input"   accept="image/*,.gif"  class="hidden"/>
+    <input type="file" id="audio-input" accept="audio/*"       class="hidden"/>
+
+    <!-- Clip button -->
+    <button id="clip-btn" title="Attach">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="#aac5d9"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/></svg>
+    </button>
 
     <textarea id="message" class="msg-textarea" rows="1" maxlength="2000" placeholder="Message"></textarea>
     <button class="send-btn" onclick="sendMessage()">
@@ -121,6 +127,7 @@
 <script>
   let authCode = '', localConnection, sendChannel, statusCheckInterval;
   let hostDisplayName = 'You', peerName = 'Peer', modalMode = 'share';
+  let chunkedReceiver;
 
   const setupScreen     = document.getElementById('setup-screen');
   const chatScreen      = document.getElementById('chat-screen');
@@ -135,6 +142,8 @@
   const copyBtn         = document.getElementById('copy-btn');
   const shareBtn        = document.getElementById('share-btn');
   const emojiContainer  = document.getElementById('emoji-picker-container');
+  const attachMenu      = document.getElementById('attach-menu');
+  const clipBtn         = document.getElementById('clip-btn');
 
   /* ── Helpers ── */
   function appendMessage(content, side, name, isHTML = false) {
@@ -188,15 +197,25 @@
     }
   }
 
-  /* ── Input: auto-grow ── */
-  messageInput.addEventListener('input', () => autoGrow(messageInput));
-  messageInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  /* ── Clip / attachment menu ── */
+  clipBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    emojiContainer.classList.add('hidden');
+    attachMenu.classList.toggle('hidden');
+    if (!attachMenu.classList.contains('hidden')) {
+      gsap.from(attachMenu, { y: 10, opacity: 0, duration: 0.2, ease: 'power2.out' });
+    }
   });
 
-  /* ── Emoji picker ── */
-  document.getElementById('emoji-btn').addEventListener('click', (e) => {
+  document.addEventListener('click', () => {
+    attachMenu.classList.add('hidden');
+    emojiContainer.classList.add('hidden');
+  });
+
+  /* Emoji from menu */
+  document.getElementById('menu-emoji-btn').addEventListener('click', (e) => {
     e.stopPropagation();
+    attachMenu.classList.add('hidden');
     if (emojiContainer.classList.contains('hidden')) {
       if (!window._emojiPickerLoaded) {
         const s = document.createElement('script');
@@ -223,25 +242,66 @@
       emojiContainer.classList.add('hidden');
     }
   });
-  document.addEventListener('click', () => emojiContainer.classList.add('hidden'));
 
-  /* ── Image / GIF ── */
-  document.getElementById('img-btn').addEventListener('click', () =>
-    document.getElementById('img-input').click());
+  /* Image from menu */
+  document.getElementById('menu-img-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    attachMenu.classList.add('hidden');
+    document.getElementById('img-input').click();
+  });
   document.getElementById('img-input').addEventListener('change', async (e) => {
     const file = e.target.files[0]; if (!file) return;
     e.target.value = '';
     await sendMediaFile(file);
   });
 
+  /* Audio from menu */
+  document.getElementById('menu-audio-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    attachMenu.classList.add('hidden');
+    document.getElementById('audio-input').click();
+  });
+  document.getElementById('audio-input').addEventListener('change', async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    e.target.value = '';
+    await sendMediaFile(file);
+  });
+
+  /* ── Input: auto-grow ── */
+  messageInput.addEventListener('input', () => autoGrow(messageInput));
+  messageInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+
+  /* ── Send media (chunked) ── */
   async function sendMediaFile(file) {
     if (!sendChannel || sendChannel.readyState !== 'open') {
       alert('Not connected yet.'); return;
     }
-    const { wire, type, name, dataURL } = await prepareMediaPayload(file);
-    const node = buildMediaNode(type, dataURL, name);
-    appendMessage(node, 'sent', hostDisplayName);
-    sendChannel.send(wire);
+    // Show optimistic preview immediately
+    const { type, name, dataURL } = await prepareMediaPayload(file);
+    const node = buildMediaNode(type, dataURL, name, 'sent');
+    if (type.startsWith('audio/')) {
+      const bubble = document.createElement('div');
+      bubble.className = `bubble sent audio-bubble`;
+      bubble.appendChild(node);
+      const timeEl = document.createElement('div');
+      timeEl.className = 'bubble-time';
+      timeEl.innerHTML = getTime() + ` <svg style="display:inline;vertical-align:-1px" width="12" height="12" viewBox="0 0 24 24" fill="rgba(255,255,255,0.6)"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;
+      bubble.appendChild(timeEl);
+      const col = document.createElement('div');
+      col.style.alignItems = 'flex-end';
+      col.appendChild(bubble);
+      const row = document.createElement('div');
+      row.className = 'msg-row sent msg-appear';
+      row.appendChild(col);
+      messagesEl.appendChild(row);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    } else {
+      appendMessage(node, 'sent', hostDisplayName);
+    }
+    // Send chunked
+    await sendFileChunked(sendChannel, file);
   }
 
   /* ── Send text ── */
@@ -265,6 +325,41 @@
     const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
     localConnection = new RTCPeerConnection(config);
     sendChannel = localConnection.createDataChannel('chat');
+    sendChannel.binaryType = 'arraybuffer';
+
+    // Chunked receiver for incoming files
+    chunkedReceiver = new ChunkedReceiver(({ type, name, dataURL }) => {
+      if (type.startsWith('audio/')) {
+        const node = buildAudioNode(dataURL, name, 'received');
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble received audio-bubble';
+        bubble.appendChild(node);
+        const timeEl = document.createElement('div');
+        timeEl.className = 'bubble-time';
+        timeEl.textContent = getTime();
+        bubble.appendChild(timeEl);
+        const nameEl = document.createElement('div');
+        nameEl.className = 'bubble-name';
+        nameEl.style.color = getAvatarColor(peerName);
+        nameEl.textContent = peerName;
+        const avatarEl = document.createElement('div');
+        avatarEl.className = 'avatar';
+        avatarEl.style.background = getAvatarColor(peerName);
+        avatarEl.textContent = peerName[0].toUpperCase();
+        const col = document.createElement('div');
+        col.appendChild(nameEl);
+        col.appendChild(bubble);
+        const row = document.createElement('div');
+        row.className = 'msg-row msg-appear';
+        row.appendChild(avatarEl);
+        row.appendChild(col);
+        messagesEl.appendChild(row);
+      } else {
+        const node = buildMediaNode(type, dataURL, name, 'received');
+        appendMessage(node, 'received', peerName);
+      }
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    });
 
     sendChannel.onopen = () => {
       sendChannel.send(`NAME:${hostDisplayName}`);
@@ -276,17 +371,22 @@
 
     sendChannel.onmessage = (event) => {
       const raw = event.data;
-      if (typeof raw === 'string' && raw.startsWith('NAME:')) {
-        peerName = sanitizeHTML(raw.substring(5));
-        topbarName.textContent = peerName;
-        peerAvatar.textContent = peerName[0].toUpperCase();
-        setStatus(topbarStatusEl, 'connected', peerName);
-        return;
-      }
-      const parsed = parseIncoming(raw);
-      if (parsed.isMedia) {
-        appendMessage(parsed.node, 'received', peerName);
-      } else {
+      // Try chunk protocol first
+      if (typeof raw === 'string') {
+        if (chunkedReceiver.feed(raw)) return;
+        if (raw.startsWith('NAME:')) {
+          peerName = sanitizeHTML(raw.substring(5));
+          topbarName.textContent = peerName;
+          peerAvatar.textContent = peerName[0].toUpperCase();
+          setStatus(topbarStatusEl, 'connected', peerName);
+          return;
+        }
+        // Legacy small media
+        const parsed = parseIncoming(raw);
+        if (parsed.isMedia) {
+          appendMessage(parsed.node, 'received', peerName);
+          return;
+        }
         const text = sanitizeHTML(raw).replace(/&lt;br&gt;/g, '<br>');
         appendMessage(text, 'received', peerName, true);
       }
