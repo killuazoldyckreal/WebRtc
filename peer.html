@@ -22,9 +22,7 @@
       background: linear-gradient(135deg, #0f7b54, #26a17b);
       box-shadow: 0 2px 10px rgba(38,161,123,0.4);
     }
-    .bubble.sent { background: linear-gradient(135deg, #0f5c3e, #1a7a54) !important; }
-    .audio-player-card { background: linear-gradient(135deg, #0d4a35, #1a7a54) !important; }
-    .audio-player-card::before { background: linear-gradient(135deg, rgba(38,161,123,0.15), rgba(15,91,62,0.2)) !important; }
+    .bubble.sent { background: linear-gradient(135deg, #0f5c3e, #1a7a54); }
   </style>
 </head>
 <body>
@@ -90,23 +88,24 @@
 
   <div id="messages"></div>
 
-  <div id="emoji-picker-container" class="hidden"></div>
+  <!-- Emoji picker -->
+  <div id="emoji-picker-container" class="hidden" style="position:absolute;bottom:70px;left:12px;z-index:100;"></div>
 
-  <div id="input-area">
+  <div id="input-area" style="position:relative;">
+    <!-- Attach bar -->
     <div id="attach-bar">
+      <!-- Emoji -->
       <button class="attach-btn" id="emoji-btn" title="Emoji">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="#aac5d9"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>
       </button>
-      <button class="attach-btn" id="img-btn" title="Images">
+      <!-- Image / GIF -->
+      <button class="attach-btn" id="img-btn" title="Image / GIF">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="#aac5d9"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
-      </button>
-      <button class="attach-btn" id="audio-btn" title="Audio file">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="#aac5d9"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
       </button>
     </div>
 
-    <input type="file" id="img-input"   accept="image/*,.gif" class="hidden" multiple/>
-    <input type="file" id="audio-input" accept="audio/*"      class="hidden"/>
+    <!-- Hidden file input -->
+    <input type="file" id="img-input" accept="image/*,.gif" class="hidden"/>
 
     <textarea id="message" class="msg-textarea" rows="1" maxlength="2000" placeholder="Message"></textarea>
     <button class="send-btn" onclick="sendMessage()">
@@ -141,19 +140,20 @@
   let authCode = '', localConnection, receiveChannel, statusCheckInterval;
   let peerDisplayName = 'You', hostName = 'Host';
 
-  const setupScreen     = document.getElementById('setup-screen');
-  const chatScreen      = document.getElementById('chat-screen');
-  const respModal       = document.getElementById('resp-modal');
-  const respCodeDisplay = document.getElementById('resp-code-display');
-  const topbarName      = document.getElementById('topbar-name');
-  const topbarStatusEl  = document.getElementById('topbar-status');
-  const hostAvatar      = document.getElementById('host-avatar');
-  const messagesEl      = document.getElementById('messages');
-  const messageInput    = document.getElementById('message');
-  const respCopyBtn     = document.getElementById('resp-copy-btn');
-  const copyRespBtn     = document.getElementById('copy-resp-btn');
-  const emojiContainer  = document.getElementById('emoji-picker-container');
+  const setupScreen    = document.getElementById('setup-screen');
+  const chatScreen     = document.getElementById('chat-screen');
+  const respModal      = document.getElementById('resp-modal');
+  const respCodeDisplay= document.getElementById('resp-code-display');
+  const topbarName     = document.getElementById('topbar-name');
+  const topbarStatusEl = document.getElementById('topbar-status');
+  const hostAvatar     = document.getElementById('host-avatar');
+  const messagesEl     = document.getElementById('messages');
+  const messageInput   = document.getElementById('message');
+  const respCopyBtn    = document.getElementById('resp-copy-btn');
+  const copyRespBtn    = document.getElementById('copy-resp-btn');
+  const emojiContainer = document.getElementById('emoji-picker-container');
 
+  /* ── Helpers ── */
   function appendMessage(content, side, name, isHTML = false) {
     const row = buildMessageRow(content, side, name, isHTML);
     messagesEl.appendChild(row);
@@ -182,12 +182,13 @@
     }
   }
 
+  /* ── Input: auto-grow ── */
   messageInput.addEventListener('input', () => autoGrow(messageInput));
   messageInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });
 
-  /* Emoji picker */
+  /* ── Emoji picker ── */
   document.getElementById('emoji-btn').addEventListener('click', (e) => {
     e.stopPropagation();
     if (emojiContainer.classList.contains('hidden')) {
@@ -218,52 +219,26 @@
   });
   document.addEventListener('click', () => emojiContainer.classList.add('hidden'));
 
-  /* Multiple images */
+  /* ── Image / GIF ── */
   document.getElementById('img-btn').addEventListener('click', () =>
     document.getElementById('img-input').click());
   document.getElementById('img-input').addEventListener('change', async (e) => {
-    const files = Array.from(e.target.files);
-    e.target.value = '';
-    if (!files.length) return;
-    await sendImageFiles(files);
-  });
-
-  /* Audio */
-  document.getElementById('audio-btn').addEventListener('click', () =>
-    document.getElementById('audio-input').click());
-  document.getElementById('audio-input').addEventListener('change', async (e) => {
     const file = e.target.files[0]; if (!file) return;
     e.target.value = '';
-    await sendAudioFile(file);
+    await sendMediaFile(file);
   });
 
-  async function sendImageFiles(files) {
+  async function sendMediaFile(file) {
     if (!receiveChannel || receiveChannel.readyState !== 'open') {
       alert('Not connected yet.'); return;
     }
-    const images = [];
-    for (const file of files) {
-      const dataURL = await fileToDataURL(file);
-      images.push({ dataURL, filename: file.name, type: file.type });
-    }
-    const collageNode = images.length === 1
-      ? buildSingleImage(images[0].dataURL, images[0].filename)
-      : buildImageCollage(images);
-    appendMessage(collageNode, 'sent', peerDisplayName);
-    const wire = JSON.stringify({ __tc_images: true, images: images.map(i => ({ type: i.type, name: i.filename, data: i.dataURL })) });
+    const { wire, type, name, dataURL } = await prepareMediaPayload(file);
+    const node = buildMediaNode(type, dataURL, name);
+    appendMessage(node, 'sent', peerDisplayName);
     receiveChannel.send(wire);
   }
 
-  async function sendAudioFile(file) {
-    if (!receiveChannel || receiveChannel.readyState !== 'open') {
-      alert('Not connected yet.'); return;
-    }
-    const dataURL = await fileToDataURL(file);
-    const playerNode = buildAudioPlayer(dataURL, file.name);
-    appendMessage(playerNode, 'sent', peerDisplayName);
-    sendInChunks(receiveChannel, file.type, file.name, dataURL);
-  }
-
+  /* ── Send text ── */
   function sendMessage() {
     if (!receiveChannel || receiveChannel.readyState !== 'open') return;
     const raw = messageInput.value.trim();
@@ -275,7 +250,7 @@
     messageInput.style.height = 'auto';
   }
 
-  /* WebRTC */
+  /* ── WebRTC ── */
   function joinAsPeer() {
     const nameVal = sanitizeHTML(document.getElementById('peerName').value.trim());
     const codeVal = document.getElementById('hostCodeInput').value.trim();
@@ -309,22 +284,10 @@
           setStatus(topbarStatusEl, 'connected', hostName);
           return;
         }
-        // Multi-image collage
-        try {
-          const obj = JSON.parse(raw);
-          if (obj && obj.__tc_images) {
-            const images = obj.images.map(i => ({ dataURL: i.data, filename: i.name }));
-            const node = images.length === 1
-              ? buildSingleImage(images[0].dataURL, images[0].filename)
-              : buildImageCollage(images);
-            appendMessage(node, 'received', hostName);
-            return;
-          }
-        } catch(_) {}
         const parsed = parseIncoming(raw);
         if (parsed.isMedia) {
           appendMessage(parsed.node, 'received', hostName);
-        } else if (!parsed.isChunk) {
+        } else {
           const text = sanitizeHTML(raw).replace(/&lt;br&gt;/g, '<br>');
           appendMessage(text, 'received', hostName, true);
         }
