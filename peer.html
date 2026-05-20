@@ -1,546 +1,462 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebRTC Chat - Peer</title>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" />
-    <style>
-      body {
-        margin: 0;
-        padding: 0;
-        font-family: 'Roboto', sans-serif;
-        background-color: #2c2f33;
-        color: #ffffff;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100dvh;
-      }
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TeleChat — Peer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <style>
+    * { font-family: 'Nunito', sans-serif; box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; padding: 0; }
+    body { background: #17212b; color: #fff; display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
 
-      .container {
-        background-color: #23272a;
-        padding: 30px;
-        border-radius: 8px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-        width: 100%;
-        max-width: 600px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-      }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #2b5070; border-radius: 4px; }
 
-      h1 {
-        text-align: center;
-        font-size: 2.0rem;
-        margin-bottom: 10px;
-        color: #7289da;
-      }
+    #setup-screen { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    #chat-screen { flex: 1; display: none; flex-direction: column; height: 100dvh; overflow: hidden; }
 
-      p {
-        font-size: 14px;
-        color: #99aab5;
-        margin: 10px 0;
-      }
+    .card {
+      background: linear-gradient(145deg, #1e2e3e, #182533);
+      border: 1px solid rgba(255,255,255,0.06);
+      box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+    }
 
-      input,
-      textarea {
-        width: 100%;
-        max-width: 450px;
-        margin: 15px 0;
-        padding: 10px;
-        border: 1px solid #99aab5;
-        border-radius: 4px;
-        background-color: #2c2f33;
-        color: #ffffff;
-        font-size: 14px;
-        box-sizing: border-box;
-      }
+    .tg-input {
+      background: #1c2e3e;
+      border: 1.5px solid #2b4a66;
+      color: #e8f4ff;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 15px;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: 'Nunito', sans-serif;
+    }
+    .tg-input:focus { border-color: #26a17b; }
+    .tg-input::placeholder { color: #4e7a96; }
 
-      input:focus,
-      textarea:focus {
-        outline: none;
-        border-color: #7289da;
-      }
+    .btn-primary {
+      background: linear-gradient(135deg, #0f7b54, #26a17b);
+      box-shadow: 0 4px 20px rgba(38,161,123,0.3);
+      transition: all 0.2s ease;
+      border: none; cursor: pointer; color: white; font-family: 'Nunito', sans-serif; font-weight: 700;
+    }
+    .btn-primary:hover { background: linear-gradient(135deg, #0d6b48, #2eb88a); transform: translateY(-1px); }
+    .btn-secondary {
+      background: #1c2e3e; border: 1.5px solid #2b4a66; color: #aac5d9;
+      transition: all 0.2s; cursor: pointer; font-family: 'Nunito', sans-serif; font-weight: 600;
+    }
+    .btn-secondary:hover { background: #243547; border-color: #3d6a8a; }
+    .btn-blue {
+      background: linear-gradient(135deg, #2b6cb0, #2196f3);
+      box-shadow: 0 4px 16px rgba(33,150,243,0.3);
+      transition: all 0.2s; border: none; cursor: pointer; color: white; font-family: 'Nunito', sans-serif; font-weight: 700;
+    }
+    .btn-blue:hover { background: linear-gradient(135deg, #2563eb, #42a5f5); transform: translateY(-1px); }
 
-      .button-container {
-        display: flex;
-        flex-direction: row;
-        gap: 15px;
-        margin-top: 10px;
-      }
+    #topbar { background: #1e2e3e; border-bottom: 1px solid rgba(255,255,255,0.06); padding: 12px 16px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    #messages { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 4px; }
+    #input-area { background: #1e2e3e; border-top: 1px solid rgba(255,255,255,0.06); padding: 10px 12px; display: flex; align-items: flex-end; flex-shrink: 0; gap: 8px; }
 
-      button {
-        background-color: #7289da;
-        color: #ffffff;
-        border: none;
-        padding: 10px 15px;
-        font-size: 14px;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: background-color 0.3s ease;
-        margin-right: 10px;
-        width: fit-content;
-      }
+    .msg-row { display: flex; align-items: flex-end; gap: 8px; margin-bottom: 2px; }
+    .msg-row.sent { flex-direction: row-reverse; }
 
-      button:hover {
-        background-color: #5b6eae;
-      }
+    .avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; flex-shrink: 0; }
 
-      .copyColor {
-        background-color: #42aa42;
-      }
+    .bubble {
+      max-width: 68%;
+      padding: 8px 12px 6px;
+      border-radius: 18px;
+      font-size: 14px;
+      line-height: 1.5;
+      word-break: break-word;
+      position: relative;
+    }
+    .bubble.received { background: #1e2e3e; border-bottom-left-radius: 4px; color: #e8f4ff; }
+    .bubble.sent { background: linear-gradient(135deg, #0f5c3e, #1a7a54); border-bottom-right-radius: 4px; color: #fff; }
 
-      .copyColor:hover {
-        background-color: rgb(44, 128, 44);
-      }
+    .bubble-name { font-size: 12px; font-weight: 700; margin-bottom: 2px; }
+    .bubble-time { font-size: 10px; color: rgba(255,255,255,0.45); margin-top: 2px; text-align: right; }
 
-      .popup {
-        position: fixed;
-        width: fit-content;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background-color: #2c2f33;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-        display: none;
-        flex-direction: column;
-        align-items: center;
-        z-index: 1000;
-        text-align: center;
-        box-sizing: border-box;
-      }
+    .msg-textarea { flex: 1; background: #263545; border: 1.5px solid #2b4a66; border-radius: 22px; color: #e8f4ff; padding: 10px 16px; font-size: 14px; resize: none; max-height: 100px; outline: none; font-family: 'Nunito', sans-serif; scrollbar-width: none; line-height: 1.5; }
+    .msg-textarea:focus { border-color: #26a17b; }
+    .msg-textarea::placeholder { color: #4e7a96; }
+    .msg-textarea::-webkit-scrollbar { display: none; }
 
-      .chatdiv {
-        display: flex;
-        flex-direction: row;
-        gap: 5px;
-        box-sizing: border-box;
-      }
+    .send-btn { width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(135deg, #0f7b54, #26a17b); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s; box-shadow: 0 2px 10px rgba(38,161,123,0.4); }
+    .send-btn:hover { transform: scale(1.08); box-shadow: 0 4px 16px rgba(38,161,123,0.55); }
+    .send-btn:active { transform: scale(0.95); }
+    .send-btn svg { transform: translateX(1px); }
 
-      .chatdiv .pfp {
-        background-color: #64de85;
-        color: white;
-        padding: 5px;
-        border-radius: 50px;
-        width: 20px;
-        height: 20px;
-        text-align: center;
-      }
+    .datestamp { display: flex; justify-content: center; margin: 8px 0; }
+    .datestamp span { background: rgba(30,46,62,0.9); padding: 4px 12px; border-radius: 20px; font-size: 11px; color: #6d9ab5; font-weight: 600; }
 
-      .input-container {
-        position: relative;
-        width: 100%;
-        display: flex;
-        background-color: #0e1621;
-        border-radius: 0 0 10px 10px;
-      }
+    .status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+    .status-connected { background: rgba(38,161,123,0.15); color: #26a17b; }
+    .status-disconnected { background: rgba(220,50,50,0.12); color: #e05252; }
+    .status-waiting { background: rgba(33,150,243,0.12); color: #64b5f6; }
 
-      .input-container textarea {
-        width: 100%;
-        padding:13px;
-        padding-right: 60px;
-        height: 50px;
-        box-sizing: border-box;
-        margin-bottom: 0;
-        overflow-y: auto;
-        scrollbar-width: none;
-      }
+    .online-dot { width: 8px; height: 8px; border-radius: 50%; background: #26a17b; animation: pulse-dot 2s infinite; }
+    @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(0.8)} }
+    .offline-dot { width: 8px; height: 8px; border-radius: 50%; background: #e05252; }
+    .waiting-dot { width: 8px; height: 8px; border-radius: 50%; background: #64b5f6; animation: pulse-dot 1.5s infinite; }
 
-      .input-container textarea::-webkit-scrollbar {
-        display: none;
-      }
+    .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 50; backdrop-filter: blur(4px); }
+    .modal { background: #1e2e3e; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 24px; width: 90%; max-width: 420px; box-shadow: 0 32px 80px rgba(0,0,0,0.6); }
 
-      .input-container button {
-        position: absolute;
-        right: 0;
-        cursor: pointer;
-        padding: 10px 18px;
-        border-radius: 50px;
-        margin-right: 5px;
-        display: flex;
-        align-items: center;
-        align-self: center;
-      }
+    .msg-appear { animation: msg-in 0.25s cubic-bezier(0.34,1.4,0.64,1) both; }
+    @keyframes msg-in { from{opacity:0;transform:scale(0.85) translateY(8px)} to{opacity:1;transform:none} }
 
-      .datestamp {
-        width: 100%;
-        display: flex;
-        justify-content: center;
-        margin: 10px 0;
-      }
+    .copy-feedback { animation: copy-flash 0.3s ease; }
+    @keyframes copy-flash { 0%{transform:scale(1)} 50%{transform:scale(0.92)} 100%{transform:scale(1)} }
 
-      .datestamp a {
-        background-color: #182533;
-        padding: 6px 8px;
-        font-size: 12px;
-        border-radius: 50px;
-        color: #b0b0b0;
-      }
+    .hidden { display: none !important; }
+    .bg-dots { background-image: radial-gradient(circle, #2b5278 1px, transparent 1px); background-size: 28px 28px; opacity: 0.2; }
 
-      #authMessage {
-        word-wrap: break-word;
-        overflow-wrap: break-word;
-        word-break: break-word;
-        white-space: normal;
-      }
+    .step-indicator { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6d9ab5; font-weight: 600; }
+    .step-num { width: 22px; height: 22px; border-radius: 50%; background: #263545; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; }
+    .step-num.active { background: #26a17b; color: white; }
+    .step-line { flex: 1; height: 1px; background: #263545; }
+  </style>
+</head>
+<body>
 
-      #chatBar {
-        flex-direction: column;
-      }
-
-      #chat {
-        background-color: #0e1621;
-        border-radius: 10px 10px 0 0;
-        height: calc(100dvh - 250px);
-        overflow-y: auto;
-        padding-bottom: 10px;
-        margin-bottom: 0;
-      }
-
-      #connectionStatus2 {
-        width: 100%;
-      }
-
-      .chatdiv p {
-        padding: 5px 10px;
-        border-radius: 10px;
-        width: fit-content;
-        color: white;
-        margin-top: 0px;
-        max-width: 55%;
-        word-wrap: break-word;
-        overflow-wrap: break-word;
-        word-break: break-word;
-        white-space: normal;
-      }
-
-      .tmg30 {
-        margin-top: 30px;
-      }
-
-      #chat .message {
-        margin: 5px 0;
-        font-size: 14px;
-      }
-
-      #chat .message.left {
-        text-align: left;
-      }
-
-      #chat .message.right {
-        text-align: right;
-      }
-      
-      #sendbtn {
-        font-size: 20px;
-      }
-
-      .hidden {
-        display: none;
-      }
-
-      @media screen and (max-width: 530px) {
-        h1 {
-          font-size: 1.7rem;
-        }
-
-        .container {
-          width: 100%;
-          height: 100dvh;
-          justify-content: center;
-          box-shadow: 0 4px 15px rgb(0, 0, 0);
-          padding: 0;
-        }
-
-        #peerName {
-          font-family: 'Roboto', sans-serif;
-          font-size: 14px;
-          width: 90%;
-        }
-
-        #createAuthBtn {
-          margin: 10px 0;
-        }
-
-        #connectionStatus {
-          margin-left: 15px;
-          margin-right: 15px;
-        }
-
-        #chatBar {
-          flex-grow: 1;
-          position: relative;
-        }
-
-        #chat {
-          border-radius: 0px;
-          flex-grow: 1;
-          margin-bottom: 65px;
-        }
-        
-        #sendbtn {
-          font-size: 30px;
-        }
-
-        .input-container {
-          position: absolute;
-          height: 65px;
-          bottom: 0;
-        }
-
-        .input-container textarea {
-          padding-top: 20px;
-          padding-right: 75px;
-          height: 65px;
-          font-size: 17px;
-          padding-bottom: 20px;
-          scrollbar-width: none;
-        }
-
-        .input-container textarea::-webkit-scrollbar {
-          display: none;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <h1 id="peerNamea">WebRTC Chat - Peer</h1>
-      <!-- Input for Peer Name -->
-      <input type="text" id="peerName" style="letter-spacing: 1px;" placeholder="Enter your name" />
-      <button id="createAuthBtn" onclick="openAuth()">Enter Host Auth Code</button>
-      <!-- Chat Bar Hidden Initially -->
-      <div id="chatBar" class="hidden" style="width: 100%;">
-        <p id="connectionStatus2" style="align-self: flex-start; text-align: center; margin-top:0;"></p>
-        <div id="chat"></div>
-        <div class="input-container">
-          <textarea rows="1" maxlength="500" id="message" placeholder="Enter message" style="resize: none; border:2px solid #0e1621; border-radius: 10px; background-color:#182533; margin-top:0; width: 100%; max-width: 100%;"></textarea>
-          <button onclick="sendMessage()">
-            <i id="sendbtn" class="fa-solid fa-paper-plane"></i>
-          </button>
-        </div>
+<div id="setup-screen">
+  <div class="absolute inset-0 bg-dots pointer-events-none"></div>
+  <div class="card rounded-2xl p-7 w-full max-w-sm flex flex-col gap-5 relative z-10">
+    <div class="flex items-center gap-3 mb-1">
+      <div class="w-10 h-10 rounded-full bg-gradient-to-br from-green-600 to-green-400 flex items-center justify-center">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
       </div>
-      <!-- Connection Status -->
-      <p id="connectionStatus" style="align-self: flex-start;">Waiting for connection...</p>
-      <!-- Popup for Auth Code -->
-      <div id="authPopup" class="popup">
-        <p id="authMessage">Paste Host Auth Code</p>
-        <input type="text" id="authInput" placeholder="Paste here">
-        <div id="btn_ctr" class="button-container">
-          <button id="copyBtn" class="hidden" onclick="copyAuthCode()">Copy</button>
-          <button id="acceptBtn" onclick="acceptAuthCode()">Confirm</button>
-          <button onclick="closePopup()">Close</button>
-        </div>
+      <div>
+        <h1 class="text-xl font-extrabold text-white">Join Chat</h1>
+        <p class="text-xs text-[#6d9ab5]">You are the Peer</p>
       </div>
     </div>
-    <script>
-      let authCode = '';
-      let localConnection, receiveChannel, peerName, offerBase64, statusCheckInterval;
-      const chatBar = document.getElementById('chatBar');
-      const createAuthBtn = document.getElementById('createAuthBtn');
-      const authPopup = document.getElementById('authPopup');
-      const authMessage = document.getElementById('authMessage');
-      const authInput = document.getElementById('authInput');
-      const buttonContainer = document.getElementById('btn_ctr');
-      const copyBtn = document.getElementById('copyBtn');
-      const acceptBtn = document.getElementById('acceptBtn');
-      const connectionStatus = document.getElementById('connectionStatus');
-      const connectionStatus2 = document.getElementById('connectionStatus2');
-      const peerNameInput = document.getElementById('peerName');
-      const peerNamea = document.getElementById('peerNamea');
-      const messageInput = document.getElementById('message');
-      const chat = document.getElementById('chat');
-      let hostName = 'Host';
-      
-      messageInput.addEventListener('input', () => {
-        messageInput.scrollTop = messageInput.scrollHeight;
-      });
 
-      function autoScrollToBottom() {
-        chat.scrollTop = chat.scrollHeight;
-      }
+    <div class="flex items-center gap-2">
+      <div class="step-num active">1</div>
+      <div class="step-line"></div>
+      <div class="step-num" id="step2">2</div>
+      <div class="step-line"></div>
+      <div class="step-num" id="step3">3</div>
+    </div>
 
-      function observeChatChanges() {
-        const observer = new MutationObserver(() => {
-          autoScrollToBottom();
-        });
-        observer.observe(chat, { childList: true });
-      }
+    <div class="flex flex-col gap-2">
+      <label class="text-xs font-700 text-[#6d9ab5] uppercase tracking-widest">Your Name</label>
+      <input id="peerName" class="tg-input" placeholder="e.g. Bob" maxlength="32" autocomplete="off"/>
+    </div>
 
-      function observeScreenHeightChanges() {
-        window.addEventListener('resize', () => {
-          autoScrollToBottom();
-        });
-      }
+    <div class="flex flex-col gap-2">
+      <label class="text-xs font-700 text-[#6d9ab5] uppercase tracking-widest">Host Invite Code</label>
+      <textarea id="hostCodeInput" class="tg-input" placeholder="Paste the host's code here…" rows="3" style="resize:none; height:80px;"></textarea>
+    </div>
 
-      observeChatChanges();
-      observeScreenHeightChanges();
+    <button onclick="joinAspeer()" class="btn-primary py-3 rounded-xl text-sm w-full flex items-center justify-center gap-2">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.11 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
+      Join &amp; Generate Response
+    </button>
 
-      function copyAuthCode() {
-        navigator.clipboard.writeText(authCode);
-        copyBtn.classList.add('copyColor');
-        copyBtn.textContent = "Copied";
-        setTimeout(() => {
-          copyBtn.classList.remove('copyColor');
-          copyBtn.textContent = "Copy";
-        }, 3000);
-      }
+    <a href="index.html" class="text-center text-xs text-[#4e7a96] hover:text-[#6d9ab5] transition-colors">← Back to home</a>
+  </div>
+</div>
 
-      function closePopup() {
-        authPopup.style.display = 'none';
-      }
+<div id="chat-screen">
+  <div id="topbar">
+    <button onclick="window.location.href='index.html'" class="w-8 h-8 rounded-full bg-[#263545] flex items-center justify-center hover:bg-[#2e3f52] transition-colors border-0 cursor-pointer flex-shrink: 0">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="#aac5d9"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+    </button>
+    <div id="host-avatar" class="avatar" style="background:linear-gradient(135deg,#2b6cb0,#2196f3)">H</div>
+    <div class="flex flex-col flex-1 min-w-0">
+      <span id="topbar-name" class="text-white font-bold text-sm truncate">Connecting…</span>
+      <div id="topbar-status" class="status-badge status-waiting w-fit">
+        <div class="waiting-dot"></div><span>Waiting</span>
+      </div>
+    </div>
+    <button id="copy-resp-btn" onclick="openRespModal()" class="w-9 h-9 rounded-full bg-[#263545] flex items-center justify-center hover:bg-[#2e3f52] transition-colors border-0 cursor-pointer flex-shrink-0">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="#aac5d9"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+    </button>
+  </div>
 
-      function sanitizeHTML(input) {
-        const div = document.createElement('div');
-        div.textContent = input;
-        return div.innerHTML;
-      }
+  <div id="messages"></div>
 
-      function safeDecode(base64String) {
-        try {
-          return atob(base64String);
-        } catch (e) {
-          alert('Invalid data provided.');
-          throw e;
-        }
-      }
+  <div id="input-area">
+    <textarea id="message" class="msg-textarea" rows="1" maxlength="500" placeholder="Message"></textarea>
+    <button class="send-btn" onclick="sendMessage()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+    </button>
+  </div>
+</div>
 
-      function safeEncode(json) {
-        return btoa(JSON.stringify(json));
-      }
+<div id="resp-modal" class="modal-bg hidden">
+  <div class="modal">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-white font-bold text-base">Your Response Code</h3>
+      <button onclick="closeRespModal()" class="w-7 h-7 rounded-full bg-[#263545] flex items-center justify-center border-0 cursor-pointer hover:bg-[#2e3f52] transition-colors">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="#aac5d9"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+      </button>
+    </div>
+    <p class="text-[#6d9ab5] text-sm mb-3">Copy and send this code back to the Host.</p>
+    <div class="bg-[#263545] rounded-xl p-3 mb-4 break-all text-xs text-[#aac5d9] font-mono max-h-24 overflow-y-auto" id="resp-code-display"></div>
+    <div class="flex gap-3">
+      <button id="resp-copy-btn" onclick="copyRespCode()" class="btn-blue flex-1 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+        Copy
+      </button>
+      <button onclick="closeRespModal()" class="btn-secondary flex-1 py-2.5 rounded-xl text-sm">Close</button>
+    </div>
+  </div>
+</div>
 
-      function getToDate() {
-        var now = new Date();
-        var monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-        var day = now.getDate();
-        var month = monthNames[now.getMonth()];
-        var year = now.getFullYear();
-        var timestamp = month + ' ' + day + ', ' + year;
-        return timestamp;
-      }
+<script>
+  let authCode = '', localConnection, receiveChannel, statusCheckInterval;
+  let peerDisplayName = 'You', hostName = 'Host';
 
-      function getDate() {
-        var now = new Date();
-        var hours = now.getHours();
-        var minutes = now.getMinutes();
-        var ampm = hours >= 12 ? 'PM' : 'AM';
-        var formattedHours = hours % 12 || 12;
-        var formattedMinutes = minutes < 10 ? '0' + minutes : minutes;
-        var timestamp = formattedHours + ':' + formattedMinutes + ' ' + ampm;
-        return timestamp;
-      }
+  const setupScreen = document.getElementById('setup-screen');
+  const chatScreen = document.getElementById('chat-screen');
+  const respModal = document.getElementById('resp-modal');
+  const respCodeDisplay = document.getElementById('resp-code-display');
+  const topbarName = document.getElementById('topbar-name');
+  const topbarStatus = document.getElementById('topbar-status');
+  const hostAvatar = document.getElementById('host-avatar');
+  const messagesEl = document.getElementById('messages');
+  const messageInput = document.getElementById('message');
+  const respCopyBtn = document.getElementById('resp-copy-btn');
+  const copyRespBtn = document.getElementById('copy-resp-btn');
 
-      function logDateAtMidnight() {
-        function waitForMidnight() {
-          var now = new Date();
-          var msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0) - now;
-          setTimeout(function() {
-            var timestamp = getToDate();
-            chat.innerHTML += `<div class='datestamp'><a>${timestamp}</a></div>`;
-            waitForMidnight();
-          }, msUntilMidnight);
-        }
-        var timestamp = getToDate();
-        chat.innerHTML += `<div class='datestamp'><a>${timestamp}</a></div>`;
-        waitForMidnight();
-      }
+  function sanitizeHTML(input) {
+    const div = document.createElement('div');
+    div.textContent = input;
+    return div.innerHTML;
+  }
 
-      function monitorSendChannel() {
-        if (receiveChannel.readyState !== 'open') {
-          connectionStatus2.textContent = "Disconnected from Peer ❗";
-        }
-      }
+  function safeDecode(b64) {
+    try { return atob(b64); } catch(e) { alert('Invalid code.'); throw e; }
+  }
 
-      function openAuth() {
-        peerName = sanitizeHTML(peerNameInput.value.trim());
-        if (!peerName) {
-          alert('Please enter your name');
-          return;
-        }
-        authPopup.style.display = 'flex';
-      }
-      async function acceptAuthCode() {
-        offerBase64 = authInput.value.trim();
-        if (!offerBase64) {
-          alert('Invalid or Empty Auth Code');
-          closePopup();
-          return;
-        }
-        const offer = JSON.parse(safeDecode(offerBase64));
-        const config = {
-          iceServers: [{
-            urls: 'stun:stun.l.google.com:19302'
-          }]
-        };
-        localConnection = new RTCPeerConnection(config);
-        localConnection.ondatachannel = (event) => {
-          receiveChannel = event.channel;
-          receiveChannel.onopen = () => {
-            connectionStatus.style.display = 'none';
-            connectionStatus2.textContent = `Connected to ${hostName} ✅`;
-            statusCheckInterval = setInterval(monitorSendChannel, 1000);
-            receiveChannel.send(`NAME:${peerName}`);
-            chatBar.classList.remove('hidden');
-            chatBar.style.display = 'flex';
-            createAuthBtn.style.display = 'none';
-            logDateAtMidnight();
-          };
-          receiveChannel.onmessage = (event) => {
-            const sanitizedData = sanitizeHTML(event.data).replace(/&lt;br&gt;/g, '<br>');
-            if (sanitizedData.startsWith('NAME:')) {
-              hostName = sanitizedData.substring(5);
-              connectionStatus.style.display = 'none';
-              connectionStatus2.textContent = `Connected to ${hostName} ✅`;
-            } else {
-              timestamp = getDate();
-              chat.innerHTML += `<div class='chatdiv' style='padding: 0 10px;'><a class='pfp'>${hostName.charAt(0).toUpperCase()}</a><p style='background-color: #182533;'><a style='color:#64de85;'><b>${hostName}</b></a><a style="font-size: 11px;color: grey;margin: 0 10px;">${timestamp}</a><br>${sanitizedData}</p></div>`;
-            }
-          };
-          receiveChannel.onclose = () => {
-            clearInterval(statusCheckInterval);
-            connectionStatus2.textContent = "Disconnected from Host ❗";
-          };
-        };
-        localConnection.onicecandidate = ({
-          candidate
-        }) => {
-          if (candidate) {
-            authCode = safeEncode(localConnection.localDescription);
-          }
-        };
-        await localConnection.setRemoteDescription(offer);
-        const answer = await localConnection.createAnswer();
-        await localConnection.setLocalDescription(answer);
-        authCode = safeEncode(answer);
-        authMessage.textContent = "Auth Code generated! Click the Copy button.";
-        createAuthBtn.disabled = true;
-        createAuthBtn.classList.add('tmg30');
-        peerNameInput.style.display = 'none';
-        const pname = sanitizeHTML(peerNameInput.value.trim());
-        peerNamea.textContent = `WebRTC Chat - Peer: ${pname}`;
-        authInput.classList.add('hidden');
-        acceptBtn.classList.add('hidden');
-        copyBtn.classList.remove('hidden');
-      }
+  function safeEncode(json) { return btoa(JSON.stringify(json)); }
 
-      function sendMessage() {
-        if (receiveChannel && receiveChannel.readyState === 'open') {
-          const message = sanitizeHTML(messageInput.value.trim()).replace(/\n/g, '<br>');
-          if (message) {
-            timestamp = getDate();
-            chat.innerHTML += `<div class='chatdiv' style='justify-content: end;padding: 0 10px;'><p style='background-color: #376593;'><a style="color:#fff;"><b>You</b></a><a style="font-size: 11px;color: #bfbfbf;margin: 0 10px;">${timestamp}</a><br>${message}</p></div>`;
-            chat.scrollTop = chat.scrollHeight;
-            receiveChannel.send(message);
-            messageInput.value = "";
-          }
+  function getTime() {
+    const now = new Date();
+    let h = now.getHours(), m = now.getMinutes();
+    const ap = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${h}:${m < 10 ? '0'+m : m} ${ap}`;
+  }
+
+  function getFullDate() {
+    const now = new Date();
+    return now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  }
+
+  function addDateStamp() {
+    const el = document.createElement('div');
+    el.className = 'datestamp';
+    el.innerHTML = `<span>${getFullDate()}</span>`;
+    messagesEl.appendChild(el);
+  }
+
+  function addMessage(text, side, name) {
+    const colors = { 'A':'#e74c3c','B':'#e67e22','C':'#2ecc71','D':'#3498db','E':'#9b59b6','F':'#1abc9c','G':'#e91e63','H':'#ff5722','I':'#00bcd4','J':'#8bc34a','K':'#ff9800','L':'#607d8b','M':'#795548','N':'#cddc39','O':'#03a9f4','P':'#673ab7','Q':'#4caf50','R':'#f44336','S':'#2196f3','T':'#ff4081','U':'#26a69a','V':'#7c4dff','W':'#66bb6a','X':'#ab47bc','Y':'#26c6da','Z':'#d4e157' };
+    const firstChar = (name || 'H')[0].toUpperCase();
+    const avatarColor = colors[firstChar] || '#2196f3';
+
+    const row = document.createElement('div');
+    row.className = `msg-row ${side === 'sent' ? 'sent' : ''} msg-appear`;
+
+    if (side === 'received') {
+      row.innerHTML = `
+        <div class="avatar" style="background:${avatarColor}">${firstChar}</div>
+        <div>
+          <div class="bubble-name" style="color:${avatarColor}">${sanitizeHTML(name)}</div>
+          <div class="bubble received">${text}<div class="bubble-time">${getTime()}</div></div>
+        </div>`;
+    } else {
+      row.innerHTML = `
+        <div>
+          <div class="bubble sent">${text}<div class="bubble-time">${getTime()} <svg style="display:inline;vertical-align:-1px" width="12" height="12" viewBox="0 0 24 24" fill="rgba(255,255,255,0.6)"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div></div>
+        </div>`;
+    }
+
+    messagesEl.appendChild(row);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function setStatus(type, label) {
+    const dot = type === 'connected' ? '<div class="online-dot"></div>' : type === 'disconnected' ? '<div class="offline-dot"></div>' : '<div class="waiting-dot"></div>';
+    const cls = type === 'connected' ? 'status-connected' : type === 'disconnected' ? 'status-disconnected' : 'status-waiting';
+    topbarStatus.className = `status-badge ${cls} w-fit`;
+    topbarStatus.innerHTML = `${dot}<span>${label}</span>`;
+  }
+
+  function openRespModal() {
+    respCodeDisplay.textContent = authCode;
+    respModal.classList.remove('hidden');
+    gsap.from(respModal.querySelector('.modal'), { y: 20, opacity: 0, duration: 0.3, ease: 'power2.out' });
+  }
+
+  function closeRespModal() { respModal.classList.add('hidden'); }
+
+  function copyRespCode() {
+    navigator.clipboard.writeText(authCode);
+    respCopyBtn.classList.add('copy-feedback');
+    respCopyBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Copied!`;
+    setTimeout(() => {
+      respCopyBtn.classList.remove('copy-feedback');
+      respCopyBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg> Copy`;
+    }, 2500);
+  }
+
+  function monitorChannel() {
+    if (receiveChannel.readyState !== 'open') {
+      setStatus('disconnected', `${hostName} left`);
+      clearInterval(statusCheckInterval);
+    }
+  }
+
+  messageInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+  messageInput.addEventListener('input', () => { messageInput.scrollTop = messageInput.scrollHeight; });
+
+  async function joinAsper() {
+    const nameVal = sanitizeHTML(document.getElementById('peerName').value.trim());
+    const codeVal = document.getElementById('hostCodeInput').value.trim();
+    if (!nameVal) { alert('Please enter your name.'); return; }
+    if (!codeVal) { alert('Please paste the host invite code.'); return; }
+
+    peerDisplayName = nameVal;
+    const offer = JSON.parse(safeDecode(codeVal));
+
+    const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+    localConnection = new RTCPeerConnection(config);
+
+    localConnection.ondatachannel = (event) => {
+      receiveChannel = event.channel;
+
+      receiveChannel.onopen = () => {
+        receiveChannel.send(`NAME:${peerDisplayName}`);
+        setStatus('connected', hostName);
+        topbarName.textContent = hostName;
+        statusCheckInterval = setInterval(monitorChannel, 1000);
+        copyRespBtn.style.display = 'none';
+      };
+
+      receiveChannel.onmessage = (event) => {
+        const data = sanitizeHTML(event.data).replace(/&lt;br&gt;/g, '<br>');
+        if (data.startsWith('NAME:')) {
+          hostName = data.substring(5);
+          topbarName.textContent = hostName;
+          hostAvatar.textContent = hostName[0].toUpperCase();
+          setStatus('connected', hostName);
         } else {
-          console.error('Data channel is not open');
+          addMessage(data, 'received', hostName);
         }
-      }
-    </script>
-  </body>
+      };
+
+      receiveChannel.onclose = () => {
+        clearInterval(statusCheckInterval);
+        setStatus('disconnected', `${hostName} disconnected`);
+      };
+    };
+
+    localConnection.onicecandidate = ({ candidate }) => {
+      if (candidate) authCode = safeEncode(localConnection.localDescription);
+    };
+
+    await localConnection.setRemoteDescription(offer);
+    const answer = await localConnection.createAnswer();
+    await localConnection.setLocalDescription(answer);
+    authCode = safeEncode(answer);
+
+    setupScreen.style.display = 'none';
+    chatScreen.style.display = 'flex';
+    gsap.from(chatScreen, { opacity: 0, duration: 0.4 });
+
+    addDateStamp();
+    setStatus('waiting', 'Awaiting host…');
+    topbarName.textContent = 'Awaiting host…';
+    openRespModal();
+  }
+
+  function sendMessage() {
+    if (!receiveChannel || receiveChannel.readyState !== 'open') return;
+    const msg = sanitizeHTML(messageInput.value.trim()).replace(/\n/g, '<br>');
+    if (!msg) return;
+    addMessage(msg, 'sent', peerDisplayName);
+    receiveChannel.send(msg);
+    messageInput.value = '';
+    messageInput.style.height = 'auto';
+  }
+</script>
+
+<script>
+  function joinAsper() {
+    const nameVal = sanitizeHTML(document.getElementById('peerName').value.trim());
+    const codeVal = document.getElementById('hostCodeInput').value.trim();
+    if (!nameVal) { alert('Please enter your name.'); return; }
+    if (!codeVal) { alert('Please paste the host invite code.'); return; }
+    peerDisplayName = nameVal;
+
+    const offer = JSON.parse(safeDecode(codeVal));
+    const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+    localConnection = new RTCPeerConnection(config);
+
+    localConnection.ondatachannel = (event) => {
+      receiveChannel = event.channel;
+      receiveChannel.onopen = () => {
+        receiveChannel.send(`NAME:${peerDisplayName}`);
+        setStatus('connected', hostName);
+        topbarName.textContent = hostName;
+        statusCheckInterval = setInterval(monitorChannel, 1000);
+        copyRespBtn.style.display = 'none';
+      };
+      receiveChannel.onmessage = (event) => {
+        const data = sanitizeHTML(event.data).replace(/&lt;br&gt;/g, '<br>');
+        if (data.startsWith('NAME:')) {
+          hostName = data.substring(5);
+          topbarName.textContent = hostName;
+          hostAvatar.textContent = hostName[0].toUpperCase();
+          setStatus('connected', hostName);
+        } else {
+          addMessage(data, 'received', hostName);
+        }
+      };
+      receiveChannel.onclose = () => {
+        clearInterval(statusCheckInterval);
+        setStatus('disconnected', `${hostName} disconnected`);
+      };
+    };
+
+    localConnection.onicecandidate = ({ candidate }) => {
+      if (candidate) authCode = safeEncode(localConnection.localDescription);
+    };
+
+    localConnection.setRemoteDescription(offer).then(() => {
+      return localConnection.createAnswer();
+    }).then((answer) => {
+      return localConnection.setLocalDescription(answer).then(() => answer);
+    }).then((answer) => {
+      authCode = safeEncode(answer);
+      setupScreen.style.display = 'none';
+      chatScreen.style.display = 'flex';
+      gsap.from(chatScreen, { opacity: 0, duration: 0.4 });
+      addDateStamp();
+      setStatus('waiting', 'Awaiting host…');
+      topbarName.textContent = 'Awaiting host…';
+      openRespModal();
+    });
+  }
+
+  document.querySelector('[onclick="joinAseer()"]') && null;
+
+  const joinBtn = document.querySelector('[onclick="joinAsper()"]');
+  if (joinBtn) joinBtn.setAttribute('onclick', 'joinAsper()');
+</script>
+</body>
 </html>
