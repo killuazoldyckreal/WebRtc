@@ -1,5 +1,5 @@
 /* =========================================================
-   TeleChat — Shared Utilities (shared.js)
+   TeleChat — Shared Utilities (shared.js)  v2
    ========================================================= */
 
 'use strict';
@@ -72,26 +72,33 @@ function fmtTime(s) {
   return `${m}:${sec < 10 ? '0' : ''}${sec}`;
 }
 
-/* ── Build an audio player widget ── */
+/* ── Build Telegram-style audio player widget ── */
 function buildAudioPlayer(src, filename) {
   const wrap = document.createElement('div');
-  wrap.className = 'audio-player-popup';
+  wrap.className = 'audio-player-card';
 
   const audio = new Audio(src);
 
+  // Strip extension for display
+  const displayName = filename.replace(/\.[^/.]+$/, '');
+
   wrap.innerHTML = `
     <button class="audio-play-btn" title="Play / Pause">
-      <svg class="icon-play" width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
-      <svg class="icon-pause hidden" width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+      <svg class="icon-play" width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
+      <svg class="icon-pause hidden" width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
     </button>
     <div class="audio-info">
-      <div class="audio-filename" title="${sanitizeHTML(filename)}">${sanitizeHTML(filename)}</div>
-      <input class="audio-seek" type="range" min="0" max="100" value="0" step="0.1"/>
-      <div class="audio-time"><span class="a-cur">0:00</span><span class="a-dur">0:00</span></div>
+      <div class="audio-title" title="${sanitizeHTML(filename)}">${sanitizeHTML(displayName)}</div>
+      <div class="audio-artist">${sanitizeHTML(filename)}</div>
+      <div class="audio-progress-row">
+        <input class="audio-seek" type="range" min="0" max="100" value="0" step="0.1"/>
+      </div>
+      <div class="audio-time-row">
+        <span class="a-cur">0:00</span>
+        <span class="a-dur">0:00</span>
+      </div>
     </div>
-    <button class="audio-close-btn" title="Remove">
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="#aac5d9"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-    </button>`;
+  `;
 
   const playBtn   = wrap.querySelector('.audio-play-btn');
   const iconPlay  = wrap.querySelector('.icon-play');
@@ -99,7 +106,6 @@ function buildAudioPlayer(src, filename) {
   const seekEl    = wrap.querySelector('.audio-seek');
   const curEl     = wrap.querySelector('.a-cur');
   const durEl     = wrap.querySelector('.a-dur');
-  const closeBtn  = wrap.querySelector('.audio-close-btn');
 
   audio.addEventListener('loadedmetadata', () => { durEl.textContent = fmtTime(audio.duration); });
   audio.addEventListener('timeupdate', () => {
@@ -111,10 +117,24 @@ function buildAudioPlayer(src, filename) {
     iconPlay.classList.remove('hidden');
     iconPause.classList.add('hidden');
     seekEl.value = 0;
+    curEl.textContent = '0:00';
   });
 
   playBtn.addEventListener('click', () => {
     if (audio.paused) {
+      // Pause all other audio players
+      document.querySelectorAll('.audio-player-card').forEach(card => {
+        if (card !== wrap) {
+          const otherPlay = card.querySelector('.audio-play-btn');
+          const otherAudio = card._audio;
+          if (otherAudio && !otherAudio.paused) {
+            otherAudio.pause();
+            otherPlay.classList.remove('playing');
+            card.querySelector('.icon-play').classList.remove('hidden');
+            card.querySelector('.icon-pause').classList.add('hidden');
+          }
+        }
+      });
       audio.play();
       playBtn.classList.add('playing');
       iconPlay.classList.add('hidden');
@@ -131,16 +151,230 @@ function buildAudioPlayer(src, filename) {
     if (audio.duration) audio.currentTime = (seekEl.value / 100) * audio.duration;
   });
 
-  closeBtn.addEventListener('click', () => {
-    audio.pause();
-    wrap.remove();
-  });
-
+  wrap._audio = audio;
   return wrap;
 }
 
+/* ── Build image collage node ── */
+function buildImageCollage(images) {
+  // images: array of { dataURL, filename }
+  if (images.length === 1) {
+    return buildSingleImage(images[0].dataURL, images[0].filename);
+  }
+
+  const collage = document.createElement('div');
+  collage.className = 'img-collage';
+  collage.dataset.count = images.length;
+
+  const visibleCount = Math.min(images.length, 4);
+  const hasMore = images.length > 4;
+
+  images.slice(0, visibleCount).forEach((img, idx) => {
+    const cell = document.createElement('div');
+    cell.className = 'collage-cell';
+
+    const imgEl = document.createElement('img');
+    imgEl.src = img.dataURL;
+    imgEl.alt = img.filename;
+    imgEl.className = 'collage-img';
+
+    // Last visible cell: show "+N more" overlay if needed
+    if (hasMore && idx === visibleCount - 1) {
+      const overlay = document.createElement('div');
+      overlay.className = 'collage-more-overlay';
+      overlay.textContent = `+${images.length - visibleCount + 1}`;
+      cell.appendChild(imgEl);
+      cell.appendChild(overlay);
+    } else {
+      cell.appendChild(imgEl);
+    }
+
+    cell.addEventListener('click', () => openLightboxGallery(images, idx));
+    collage.appendChild(cell);
+  });
+
+  return collage;
+}
+
+function buildSingleImage(dataURL, filename) {
+  const wrap = document.createElement('div');
+  wrap.className = 'single-img-wrap';
+  const img = document.createElement('img');
+  img.src = dataURL;
+  img.alt = filename;
+  img.className = 'chat-img';
+  img.addEventListener('click', () => openLightboxGallery([{dataURL, filename}], 0));
+  wrap.appendChild(img);
+  return wrap;
+}
+
+/* ── Lightbox gallery ── */
+function openLightboxGallery(images, startIdx) {
+  let current = startIdx;
+
+  let lb = document.getElementById('lightbox');
+  if (lb) lb.remove();
+
+  lb = document.createElement('div');
+  lb.id = 'lightbox';
+
+  lb.innerHTML = `
+    <div class="lb-backdrop"></div>
+    <div class="lb-content">
+      <img class="lb-img" src="${images[current].dataURL}" alt=""/>
+      <div class="lb-counter">${current + 1} / ${images.length}</div>
+      ${images.length > 1 ? `
+        <button class="lb-nav lb-prev">‹</button>
+        <button class="lb-nav lb-next">›</button>
+      ` : ''}
+      <button class="lb-close">✕</button>
+    </div>
+  `;
+
+  function update() {
+    lb.querySelector('.lb-img').src = images[current].dataURL;
+    lb.querySelector('.lb-counter').textContent = `${current + 1} / ${images.length}`;
+  }
+
+  lb.querySelector('.lb-backdrop').addEventListener('click', () => lb.remove());
+  lb.querySelector('.lb-close').addEventListener('click', () => lb.remove());
+
+  if (images.length > 1) {
+    lb.querySelector('.lb-prev').addEventListener('click', (e) => {
+      e.stopPropagation();
+      current = (current - 1 + images.length) % images.length;
+      update();
+    });
+    lb.querySelector('.lb-next').addEventListener('click', (e) => {
+      e.stopPropagation();
+      current = (current + 1) % images.length;
+      update();
+    });
+  }
+
+  // Swipe support
+  let startX = 0;
+  lb.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; });
+  lb.addEventListener('touchend', (e) => {
+    const diff = startX - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 50) {
+      if (diff > 0) current = (current + 1) % images.length;
+      else current = (current - 1 + images.length) % images.length;
+      update();
+    }
+  });
+
+  document.body.appendChild(lb);
+}
+
+/* ── Grow textarea with content ── */
+function autoGrow(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, window.innerHeight * 0.35) + 'px';
+}
+
+/* ── Encode a File to base64 data-URL ── */
+function fileToDataURL(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload  = () => res(r.result);
+    r.onerror = () => rej(new Error('Read failed'));
+    r.readAsDataURL(file);
+  });
+}
+
+/* ═══════════════════════════════════════════════════════
+   CHUNKED TRANSFER — fixes disconnect on large audio files
+   ═══════════════════════════════════════════════════════ */
+const CHUNK_SIZE = 16 * 1024; // 16 KB per chunk
+const _incomingChunks = {};   // keyed by transfer id
+
+function sendInChunks(channel, type, name, dataURL) {
+  const id = Math.random().toString(36).slice(2);
+  const totalChunks = Math.ceil(dataURL.length / CHUNK_SIZE);
+
+  // Send header
+  channel.send(JSON.stringify({ __tc_chunk_start: true, id, type, name, totalChunks }));
+
+  let i = 0;
+  function sendNext() {
+    if (i >= totalChunks) {
+      channel.send(JSON.stringify({ __tc_chunk_end: true, id }));
+      return;
+    }
+    const slice = dataURL.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+    channel.send(JSON.stringify({ __tc_chunk: true, id, index: i, data: slice }));
+    i++;
+    // Small delay to avoid overwhelming the channel buffer
+    setTimeout(sendNext, 10);
+  }
+  sendNext();
+}
+
+/* ── Prepare + send a media file ── */
+async function prepareMediaPayload(file) {
+  const dataURL = await fileToDataURL(file);
+  const type = file.type;
+  const wire = JSON.stringify({ __tc_media: true, type, name: file.name, data: dataURL });
+  return { wire, type, name: file.name, dataURL };
+}
+
+/* ── Build a display node from type + dataURL ── */
+function buildMediaNode(type, dataURL, filename) {
+  if (type.startsWith('image/')) {
+    return buildSingleImage(dataURL, filename);
+  }
+  if (type.startsWith('audio/')) {
+    return buildAudioPlayer(dataURL, filename);
+  }
+  const a = document.createElement('a');
+  a.href = dataURL; a.download = filename;
+  a.textContent = `📎 ${filename}`;
+  a.style.color = '#64b5f6';
+  return a;
+}
+
+/* ── Parse incoming wire message ── */
+// Returns { isMedia, node, isChunk, chunkDone, id, chunkData }
+function parseIncoming(raw) {
+  try {
+    const obj = JSON.parse(raw);
+
+    // Chunk start
+    if (obj && obj.__tc_chunk_start) {
+      _incomingChunks[obj.id] = { type: obj.type, name: obj.name, totalChunks: obj.totalChunks, chunks: [] };
+      return { isChunk: true };
+    }
+
+    // Chunk piece
+    if (obj && obj.__tc_chunk) {
+      const rec = _incomingChunks[obj.id];
+      if (rec) rec.chunks[obj.index] = obj.data;
+      return { isChunk: true };
+    }
+
+    // Chunk end → reassemble
+    if (obj && obj.__tc_chunk_end) {
+      const rec = _incomingChunks[obj.id];
+      delete _incomingChunks[obj.id];
+      if (rec) {
+        const dataURL = rec.chunks.join('');
+        const node = buildMediaNode(rec.type, dataURL, rec.name);
+        return { isMedia: true, node };
+      }
+      return { isChunk: true };
+    }
+
+    // Legacy single-shot media
+    if (obj && obj.__tc_media) {
+      const node = buildMediaNode(obj.type, obj.data, obj.name);
+      return { isMedia: true, node };
+    }
+  } catch(_) {}
+  return { isMedia: false };
+}
+
 /* ── Build a message row ── */
-// contentNode: a DOM node OR null (uses textContent string 'text')
 function buildMessageRow(content, side, senderName, isHTML = false) {
   const ch    = (senderName || '?')[0].toUpperCase();
   const color = getAvatarColor(senderName);
@@ -150,7 +384,6 @@ function buildMessageRow(content, side, senderName, isHTML = false) {
   const bubble = document.createElement('div');
   bubble.className = `bubble ${side}`;
 
-  // Content can be a Node (image / audio) or string
   if (content instanceof Node) {
     bubble.appendChild(content);
   } else {
@@ -195,77 +428,4 @@ function buildMessageRow(content, side, senderName, isHTML = false) {
   }
 
   return row;
-}
-
-/* ── Lightbox for images ── */
-function openLightbox(src) {
-  let lb = document.getElementById('lightbox');
-  if (!lb) {
-    lb = document.createElement('div');
-    lb.id = 'lightbox';
-    lb.innerHTML = `<img src=""/>`;
-    lb.addEventListener('click', () => lb.remove());
-    document.body.appendChild(lb);
-  }
-  lb.querySelector('img').src = src;
-  lb.style.display = 'flex';
-}
-
-/* ── Grow textarea with content ── */
-function autoGrow(el) {
-  el.style.height = 'auto';
-  el.style.height = el.scrollHeight + 'px';
-}
-
-/* ── Encode a File to base64 data-URL ── */
-function fileToDataURL(file) {
-  return new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload  = () => res(r.result);
-    r.onerror = () => rej(new Error('Read failed'));
-    r.readAsDataURL(file);
-  });
-}
-
-/* ── Media message builder ── */
-// Returns a serialisable wire payload string AND a display Node
-async function prepareMediaPayload(file) {
-  const dataURL = await fileToDataURL(file);
-  const type = file.type;
-  // Wire: JSON envelope so receiver knows how to render
-  const wire = JSON.stringify({ __tc_media: true, type, name: file.name, data: dataURL });
-  return { wire, type, name: file.name, dataURL };
-}
-
-function buildMediaNode(type, dataURL, filename) {
-  if (type.startsWith('image/')) {
-    const img = document.createElement('img');
-    img.src = dataURL;
-    img.className = type === 'image/gif' ? 'chat-gif' : 'chat-img';
-    img.alt = filename;
-    img.addEventListener('click', () => openLightbox(dataURL));
-    return img;
-  }
-  if (type.startsWith('audio/')) {
-    return buildAudioPlayer(dataURL, filename);
-  }
-  // fallback: file download link
-  const a = document.createElement('a');
-  a.href = dataURL; a.download = filename;
-  a.textContent = `📎 ${filename}`;
-  a.style.color = '#64b5f6';
-  return a;
-}
-
-/* ── Parse incoming wire message ── */
-// Returns { isMedia, node } or { isMedia:false, text }
-function parseIncoming(raw) {
-  try {
-    const obj = JSON.parse(raw);
-    if (obj && obj.__tc_media) {
-      const node = buildMediaNode(obj.type, obj.data, obj.name);
-      return { isMedia: true, node };
-    }
-  } catch(_) {}
-  return { isMedia: false };
 }
