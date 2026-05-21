@@ -248,8 +248,8 @@
   /* ── Send media (chunked) ── */
   async function sendMediaFile(file) {
     if (!sendChannel || sendChannel.readyState !== 'open') { alert('Not connected yet.'); return; }
-    const { type, name, dataURL } = await prepareMediaPayload(file);
-    if (isAudioType(type, name)) {
+    const { type, kind, name, dataURL } = await prepareMediaPayload(file);
+    if (kind === 'audio' || isAudioType(type, name)) {
       // Extract album art then show bubble
       const albumArt = await extractAlbumArt(file);
       appendAudioMessage(dataURL, name, 'sent', hostDisplayName, messagesEl, albumArt);
