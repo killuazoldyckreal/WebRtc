@@ -378,7 +378,7 @@ function buildMessageRow(content, side, senderName, isHTML) {
   var row   = document.createElement('div');
   row.className = 'msg-row ' + (side === 'sent' ? 'sent' : '') + ' msg-appear';
 
-  var isMedia = content instanceof Node;
+  var isMedia = content && typeof content === 'object' && typeof content.nodeType === 'number';
 
   var bubble = document.createElement('div');
   bubble.className = 'bubble ' + side + (isMedia ? ' media-bubble' : '');
