@@ -514,7 +514,15 @@ async function sendFileChunked(channel, file) {
 
   channel.send(JSON.stringify({
     __tc_chunk_start: true,
-    id: id, type: mimeType, name: file.name, totalChunks: chunks.length
+    id: id,
+    type: mimeType,
+    name: file.name,
+    kind: isAudioType(mimeType, file.name)
+      ? 'audio'
+      : isImageType(mimeType, file.name)
+      ? 'image'
+      : 'file',
+    totalChunks: chunks.length
   }));
 
   for (var j = 0; j < chunks.length; j++) {
@@ -537,7 +545,7 @@ ChunkedReceiver.prototype.feed = function (raw) {
   try { obj = JSON.parse(raw); } catch (_) { return false; }
   if (obj.__tc_chunk_start) {
     this._pending[obj.id] = {
-      type: obj.type, name: obj.name,
+      type: obj.type, kind: obj.kind, name: obj.name,
       totalChunks: obj.totalChunks, chunks: new Array(obj.totalChunks)
     };
     return true;
@@ -562,7 +570,7 @@ ChunkedReceiver.prototype.feed = function (raw) {
 
     var dataURL = 'data:' + resolvedType + ';base64,' + b64;
     delete this._pending[obj.id];
-    this._onComplete({ id: obj.id, type: resolvedType, name: p2.name, dataURL: dataURL });
+    this._onComplete({ id: obj.id, type: resolvedType, kind: p2.kind, name: p2.name, dataURL: dataURL });
     return true;
   }
   return false;
