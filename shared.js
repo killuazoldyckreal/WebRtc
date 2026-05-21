@@ -128,9 +128,12 @@ function buildAudioBubble(dataURL, filename, side, albumArtURL) {
   bubble.className = `bubble ${side} audio-bubble`;
 
   /* ── hidden <audio> ── */
-  const audio = document.createElement('audio');
+  const audio = new Audio();
   audio.src = dataURL;
   audio.preload = 'metadata';
+  audio.controls = false;
+  audio.style.display = 'none';
+  audio.setAttribute('playsinline', '');
   bubble.appendChild(audio);
 
   /* ── layout row ── */
@@ -218,8 +221,16 @@ function buildAudioBubble(dataURL, filename, side, albumArtURL) {
 
   /* ── audio events ── */
   audio.addEventListener('loadedmetadata', () => {
+  if (isFinite(audio.duration)) {
     duration.textContent = formatDuration(audio.duration);
-  });
+  }
+});
+
+audio.addEventListener('canplaythrough', () => {
+  if (isFinite(audio.duration)) {
+    duration.textContent = formatDuration(audio.duration);
+  }
+});
 
   let playing = false;
 
@@ -235,7 +246,7 @@ function buildAudioBubble(dataURL, filename, side, albumArtURL) {
       audio.pause();
     } else {
       document.querySelectorAll('audio[data-tc]').forEach(a => { if (a !== audio) a.pause(); });
-      audio.play();
+      audio.play().catch(() => {});
     }
   });
 
