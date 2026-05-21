@@ -75,11 +75,52 @@ function formatDuration(secs) {
 /* ── Music note SVG (default thumbnail) ── */
 const MUSIC_ICON_SVG = `<svg viewBox="0 0 24 24" fill="rgba(255,255,255,0.7)" width="22" height="22"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>`;
 
+/* ── Extract album art from audio file using jsmediatags ── */
+function extractAlbumArt(file) {
+  return new Promise(resolve => {
+    // Try to load jsmediatags if not already loaded
+    function tryExtract() {
+      if (typeof window.jsmediatags === 'undefined') {
+        resolve(null);
+        return;
+      }
+      window.jsmediatags.read(file, {
+        onSuccess: tag => {
+          try {
+            const pic = tag.tags.picture;
+            if (pic) {
+              let base64 = '';
+              const data = pic.data;
+              for (let i = 0; i < data.length; i++) {
+                base64 += String.fromCharCode(data[i]);
+              }
+              resolve(`data:${pic.format};base64,${btoa(base64)}`);
+            } else {
+              resolve(null);
+            }
+          } catch(_) { resolve(null); }
+        },
+        onError: () => resolve(null)
+      });
+    }
+
+    if (typeof window.jsmediatags === 'undefined') {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.7/jsmediatags.min.js';
+      s.onload = tryExtract;
+      s.onerror = () => resolve(null);
+      document.head.appendChild(s);
+    } else {
+      tryExtract();
+    }
+  });
+}
+
 /* ═══════════════════════════════════════════════
    buildAudioBubble — returns a full .bubble div
    side: 'sent' | 'received'
    ═══════════════════════════════════════════════ */
-function buildAudioBubble(dataURL, filename, side) {
+function buildAudioBubble(dataURL, filename, side, albumArtURL) {
   const isSent = side === 'sent';
 
   /* ── outer bubble ── */
@@ -99,7 +140,14 @@ function buildAudioBubble(dataURL, filename, side) {
   /* ── thumbnail circle ── */
   const thumb = document.createElement('div');
   thumb.className = 'ab-thumb';
-  thumb.innerHTML = MUSIC_ICON_SVG;
+  if (albumArtURL) {
+    const img = document.createElement('img');
+    img.src = albumArtURL;
+    img.alt = '';
+    thumb.appendChild(img);
+  } else {
+    thumb.innerHTML = MUSIC_ICON_SVG;
+  }
 
   /* ── play/pause button (sits on top of thumb) ── */
   const playBtn = document.createElement('button');
@@ -118,7 +166,6 @@ function buildAudioBubble(dataURL, filename, side) {
   /* title */
   const title = document.createElement('div');
   title.className = 'ab-title';
-  // strip extension for display
   title.textContent = filename.replace(/\.[^.]+$/, '') || 'Audio';
   title.title = filename;
 
@@ -187,7 +234,6 @@ function buildAudioBubble(dataURL, filename, side) {
     if (playing) {
       audio.pause();
     } else {
-      // pause every other audio on page
       document.querySelectorAll('audio[data-tc]').forEach(a => { if (a !== audio) a.pause(); });
       audio.play();
     }
@@ -239,8 +285,8 @@ function buildAudioBubble(dataURL, filename, side) {
    appendAudioMessage — builds the full
    msg-row and appends to container
    ════════════════════════════════════ */
-function appendAudioMessage(dataURL, filename, side, senderName, container) {
-  const bubble = buildAudioBubble(dataURL, filename, side);
+function appendAudioMessage(dataURL, filename, side, senderName, container, albumArtURL) {
+  const bubble = buildAudioBubble(dataURL, filename, side, albumArtURL);
 
   const msgRow = document.createElement('div');
   msgRow.className = `msg-row ${side === 'sent' ? 'sent' : ''} msg-appear`;
@@ -436,17 +482,34 @@ class ChunkedReceiver {
   }
 }
 
+/* ── Detect if MIME type is audio ── */
+function isAudioType(type, filename) {
+  if (type && type.startsWith('audio/')) return true;
+  // Fallback: check file extension for when browser returns empty type
+  const ext = (filename || '').split('.').pop().toLowerCase();
+  return ['mp3','wav','ogg','flac','aac','m4a','opus','weba','wma','aiff'].includes(ext);
+}
+
+/* ── Detect if MIME type is image ── */
+function isImageType(type, filename) {
+  if (type && type.startsWith('image/')) return true;
+  const ext = (filename || '').split('.').pop().toLowerCase();
+  return ['jpg','jpeg','png','gif','webp','bmp','svg','ico','avif'].includes(ext);
+}
+
 /* ── Media message builder (images) ── */
 async function prepareMediaPayload(file) {
   const dataURL = await fileToDataURL(file);
-  return { type: file.type, name: file.name, dataURL };
+  // Use dataURL mime if file.type is empty
+  const type = file.type || dataURL.split(';')[0].split(':')[1] || '';
+  return { type, name: file.name, dataURL };
 }
 
 function buildMediaNode(type, dataURL, filename) {
-  if (type.startsWith('image/')) {
+  if (isImageType(type, filename)) {
     const img = document.createElement('img');
     img.src = dataURL;
-    img.className = type === 'image/gif' ? 'chat-gif' : 'chat-img';
+    img.className = (type === 'image/gif' || filename.toLowerCase().endsWith('.gif')) ? 'chat-gif' : 'chat-img';
     img.alt = filename;
     img.addEventListener('click', () => openLightbox(dataURL));
     return img;
