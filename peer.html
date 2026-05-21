@@ -239,8 +239,8 @@
   /* ── Send media (chunked) ── */
   async function sendMediaFile(file) {
     if (!receiveChannel || receiveChannel.readyState !== 'open') { alert('Not connected yet.'); return; }
-    const { type, name, dataURL } = await prepareMediaPayload(file);
-    if (isAudioType(type, name)) {
+    const { type, kind, name, dataURL } = await prepareMediaPayload(file);
+    if (kind === 'audio' || isAudioType(type, name)) {
       const albumArt = await extractAlbumArt(file);
       appendAudioMessage(dataURL, name, 'sent', peerDisplayName, messagesEl, albumArt);
     } else {
@@ -276,8 +276,8 @@
     localConnection.ondatachannel = event => {
       receiveChannel = event.channel;
 
-      chunkedReceiver = new ChunkedReceiver(({ type, name, dataURL }) => {
-        if (isAudioType(type, name)) {
+      chunkedReceiver = new ChunkedReceiver(({ type, kind, name, dataURL }) => {
+        if (kind === 'audio' || isAudioType(type, name)) {
           appendAudioMessage(dataURL, name, 'received', hostName, messagesEl, null);
         } else {
           appendMessage(buildMediaNode(type, dataURL, name), 'received', hostName);
