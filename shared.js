@@ -77,23 +77,23 @@ const MUSIC_ICON_SVG = '<svg viewBox="0 0 24 24" fill="rgba(255,255,255,0.7)" wi
 
 /* ═══════════════════════════════════════════════════════════
    OLD ANDROID DETECTION
-   Android 9 (API 28) ships with Chrome 69 / WebView 69.
-   Anything below Chrome 70 on Android gets the native fallback.
-   We also catch the old "Android" stock browser (no Chrome UA).
+   Targets Android <= 9 with Chrome < 70 (or no Chrome token).
+   Also catches cases where the custom player APIs simply aren't
+   available (no AudioContext / broken Web Audio on old WebViews).
    ═══════════════════════════════════════════════════════════ */
 var _isOldAndroid = (function () {
   var ua = navigator.userAgent || '';
-  // Detect Android
   if (!/Android/i.test(ua)) return false;
 
-  // Extract Android version
   var avMatch = ua.match(/Android\s+(\d+)/i);
   var androidVer = avMatch ? parseInt(avMatch[1], 10) : 99;
 
-  // If Android <= 9 AND Chrome version < 70, use native fallback
   var crMatch = ua.match(/Chrome\/(\d+)/i);
-  if (!crMatch) return true;               // stock browser, no Chrome token
+  if (!crMatch) return true;               // stock browser — no Chrome token
   var chromeVer = parseInt(crMatch[1], 10);
+
+  // Android 9 (API 28) shipped Chrome 69 as the system WebView.
+  // Chrome 70+ supports all APIs the custom player needs.
   return (androidVer <= 9 && chromeVer < 70);
 })();
 
@@ -150,7 +150,7 @@ function buildAudioBubble(dataURL, filename, side, albumArtURL) {
     nativeTitle.textContent = filename.replace(/\.[^.]+$/, '') || 'Audio';
     nativeTitle.title = filename;
 
-    /* Native audio element — class tc-audio-native so CSS shows it */
+    /* Native audio element */
     var nativeAudio = document.createElement('audio');
     nativeAudio.className = 'tc-audio-native';
     nativeAudio.controls = true;
@@ -473,11 +473,39 @@ function fileToDataURL(file) {
    ════════════════════════════════════ */
 var CHUNK_SIZE = 16 * 1024; // 16 KB
 
+/* ── Resolve best MIME for a file ──────────────────────────
+   Old Android WebViews often return '' or 'application/octet-stream'
+   for audio/image files. We derive the MIME from the extension so the
+   receiver can always identify the file type correctly.
+   ─────────────────────────────────────────────────────────── */
+var MIME_MAP = {
+  /* audio */
+  mp3:'audio/mpeg', wav:'audio/wav', ogg:'audio/ogg', flac:'audio/flac',
+  aac:'audio/aac', m4a:'audio/mp4', opus:'audio/opus', weba:'audio/webm',
+  wma:'audio/x-ms-wma', aiff:'audio/aiff', aif:'audio/aiff',
+  /* image */
+  jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', gif:'image/gif',
+  webp:'image/webp', bmp:'image/bmp', svg:'image/svg+xml',
+  ico:'image/x-icon', avif:'image/avif'
+};
+
+function resolveMime(file) {
+  var type = file.type || '';
+  /* If the browser gave us a real MIME (not empty / octet-stream) use it */
+  if (type && type !== 'application/octet-stream') return type;
+  /* Fall back to extension lookup */
+  var ext = (file.name || '').split('.').pop().toLowerCase();
+  return MIME_MAP[ext] || type || 'application/octet-stream';
+}
+
 async function sendFileChunked(channel, file) {
   var id = Date.now() + '_' + Math.random().toString(36).slice(2);
   var dataURL = await fileToDataURL(file);
+
+  /* Use resolveMime so the receiver always gets a meaningful type */
+  var mimeType = resolveMime(file);
+
   var b64 = dataURL.split(',')[1];
-  var mimeType = dataURL.split(';')[0].split(':')[1];
 
   var chunks = [];
   for (var i = 0; i < b64.length; i += CHUNK_SIZE) {
@@ -508,7 +536,10 @@ ChunkedReceiver.prototype.feed = function (raw) {
   var obj;
   try { obj = JSON.parse(raw); } catch (_) { return false; }
   if (obj.__tc_chunk_start) {
-    this._pending[obj.id] = { type: obj.type, name: obj.name, totalChunks: obj.totalChunks, chunks: new Array(obj.totalChunks) };
+    this._pending[obj.id] = {
+      type: obj.type, name: obj.name,
+      totalChunks: obj.totalChunks, chunks: new Array(obj.totalChunks)
+    };
     return true;
   }
   if (obj.__tc_chunk) {
@@ -520,32 +551,41 @@ ChunkedReceiver.prototype.feed = function (raw) {
     var p2 = this._pending[obj.id];
     if (!p2) return true;
     var b64 = p2.chunks.join('');
-    var dataURL = 'data:' + p2.type + ';base64,' + b64;
+
+    /* Re-resolve MIME on receiving end using extension as well,
+       in case the sender was on old Android and sent octet-stream */
+    var resolvedType = p2.type;
+    if (!resolvedType || resolvedType === 'application/octet-stream') {
+      var ext2 = (p2.name || '').split('.').pop().toLowerCase();
+      resolvedType = MIME_MAP[ext2] || resolvedType;
+    }
+
+    var dataURL = 'data:' + resolvedType + ';base64,' + b64;
     delete this._pending[obj.id];
-    this._onComplete({ id: obj.id, type: p2.type, name: p2.name, dataURL: dataURL });
+    this._onComplete({ id: obj.id, type: resolvedType, name: p2.name, dataURL: dataURL });
     return true;
   }
   return false;
 };
 
-/* ── Detect if MIME type is audio ── */
+/* ── Detect if MIME type or filename is audio ── */
 function isAudioType(type, filename) {
   if (type && type.startsWith('audio/')) return true;
   var ext = (filename || '').split('.').pop().toLowerCase();
-  return ['mp3','wav','ogg','flac','aac','m4a','opus','weba','wma','aiff'].indexOf(ext) !== -1;
+  return ['mp3','wav','ogg','flac','aac','m4a','opus','weba','wma','aiff','aif'].indexOf(ext) !== -1;
 }
 
-/* ── Detect if MIME type is image ── */
+/* ── Detect if MIME type or filename is image ── */
 function isImageType(type, filename) {
   if (type && type.startsWith('image/')) return true;
   var ext = (filename || '').split('.').pop().toLowerCase();
   return ['jpg','jpeg','png','gif','webp','bmp','svg','ico','avif'].indexOf(ext) !== -1;
 }
 
-/* ── Media message builder (images) ── */
+/* ── Media message builder (images / unknown files) ── */
 async function prepareMediaPayload(file) {
   var dataURL = await fileToDataURL(file);
-  var type = file.type || dataURL.split(';')[0].split(':')[1] || '';
+  var type = resolveMime(file);
   return { type: type, name: file.name, dataURL: dataURL };
 }
 
@@ -558,6 +598,17 @@ function buildMediaNode(type, dataURL, filename) {
     img.addEventListener('click', function () { openLightbox(dataURL); });
     return img;
   }
+  /* Safety net: if an audio file somehow bypassed isAudioType
+     (e.g. completely unknown extension), render a minimal native player
+     rather than a broken download link */
+  if (isAudioType(type, filename)) {
+    var audioFallback = document.createElement('audio');
+    audioFallback.controls = true;
+    audioFallback.preload = 'metadata';
+    audioFallback.src = dataURL;
+    audioFallback.style.cssText = 'width:100%;border-radius:8px;outline:none;';
+    return audioFallback;
+  }
   var a = document.createElement('a');
   a.href = dataURL; a.download = filename;
   a.textContent = '📎 ' + filename;
@@ -565,7 +616,7 @@ function buildMediaNode(type, dataURL, filename) {
   return a;
 }
 
-/* ── Parse incoming wire message (legacy) ── */
+/* ── Parse incoming wire message (legacy inline media) ── */
 function parseIncoming(raw) {
   try {
     var obj = JSON.parse(raw);
