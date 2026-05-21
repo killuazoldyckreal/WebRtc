@@ -279,8 +279,8 @@
     localConnection = new RTCPeerConnection(config);
     sendChannel = localConnection.createDataChannel('chat');
 
-    chunkedReceiver = new ChunkedReceiver(({ type, name, dataURL }) => {
-      if (isAudioType(type, name)) {
+    chunkedReceiver = new ChunkedReceiver(({ type, kind, name, dataURL }) => {
+      if (kind === 'audio' || isAudioType(type, name)) {
         appendAudioMessage(dataURL, name, 'received', peerName, messagesEl, null);
       } else {
         appendMessage(buildMediaNode(type, dataURL, name), 'received', peerName);
