@@ -72,141 +72,210 @@ function formatDuration(secs) {
   return `${m}:${s < 10 ? '0' + s : s}`;
 }
 
-/* ── Build audio message node ── */
-function buildAudioNode(dataURL, filename, side) {
-  const wrapper = document.createElement('div');
-  wrapper.className = 'audio-msg';
+/* ── Music note SVG (default thumbnail) ── */
+const MUSIC_ICON_SVG = `<svg viewBox="0 0 24 24" fill="rgba(255,255,255,0.7)" width="22" height="22"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>`;
 
+/* ═══════════════════════════════════════════════
+   buildAudioBubble — returns a full .bubble div
+   side: 'sent' | 'received'
+   ═══════════════════════════════════════════════ */
+function buildAudioBubble(dataURL, filename, side) {
+  const isSent = side === 'sent';
+
+  /* ── outer bubble ── */
+  const bubble = document.createElement('div');
+  bubble.className = `bubble ${side} audio-bubble`;
+
+  /* ── hidden <audio> ── */
   const audio = document.createElement('audio');
   audio.src = dataURL;
   audio.preload = 'metadata';
+  bubble.appendChild(audio);
 
-  // Play/pause button
+  /* ── layout row ── */
+  const row = document.createElement('div');
+  row.className = 'ab-row';
+
+  /* ── thumbnail circle ── */
+  const thumb = document.createElement('div');
+  thumb.className = 'ab-thumb';
+  thumb.innerHTML = MUSIC_ICON_SVG;
+
+  /* ── play/pause button (sits on top of thumb) ── */
   const playBtn = document.createElement('button');
-  playBtn.className = 'audio-play-btn';
-  playBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M8 5v14l11-7z"/></svg>`;
+  playBtn.className = 'ab-play';
+  playBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M8 5v14l11-7z"/></svg>`;
 
-  // Waveform / seek track
+  const thumbWrap = document.createElement('div');
+  thumbWrap.className = 'ab-thumb-wrap';
+  thumbWrap.appendChild(thumb);
+  thumbWrap.appendChild(playBtn);
+
+  /* ── right column: title + seek + times ── */
+  const col = document.createElement('div');
+  col.className = 'ab-col';
+
+  /* title */
+  const title = document.createElement('div');
+  title.className = 'ab-title';
+  // strip extension for display
+  title.textContent = filename.replace(/\.[^.]+$/, '') || 'Audio';
+  title.title = filename;
+
+  /* seek track */
   const trackWrap = document.createElement('div');
-  trackWrap.className = 'audio-track-wrap';
+  trackWrap.className = 'ab-track-wrap';
 
   const track = document.createElement('div');
-  track.className = 'audio-track';
+  track.className = 'ab-track';
 
-  const progress = document.createElement('div');
-  progress.className = 'audio-progress';
+  const prog = document.createElement('div');
+  prog.className = 'ab-progress';
+  prog.style.width = '0%';
 
-  const thumb = document.createElement('div');
-  thumb.className = 'audio-thumb';
+  const dot = document.createElement('div');
+  dot.className = 'ab-dot';
+  dot.style.left = '0%';
 
-  track.appendChild(progress);
-  track.appendChild(thumb);
+  track.appendChild(prog);
+  track.appendChild(dot);
   trackWrap.appendChild(track);
 
-  // Time display
-  const timeEl = document.createElement('span');
-  timeEl.className = 'audio-time';
-  timeEl.textContent = '0:00';
+  /* times row */
+  const timesRow = document.createElement('div');
+  timesRow.className = 'ab-times';
 
-  // Duration display (shown after metadata loads)
-  const durEl = document.createElement('span');
-  durEl.className = 'audio-dur';
-  durEl.textContent = '';
+  const elapsed = document.createElement('span');
+  elapsed.textContent = '0:00';
 
+  const duration = document.createElement('span');
+  duration.textContent = '0:00';
+
+  timesRow.appendChild(elapsed);
+  timesRow.appendChild(duration);
+
+  col.appendChild(title);
+  col.appendChild(trackWrap);
+  col.appendChild(timesRow);
+
+  row.appendChild(thumbWrap);
+  row.appendChild(col);
+  bubble.appendChild(row);
+
+  /* ── timestamp row ── */
+  const timeEl = document.createElement('div');
+  timeEl.className = 'bubble-time';
+  const checkSVG = `<svg style="display:inline;vertical-align:-1px" width="12" height="12" viewBox="0 0 24 24" fill="rgba(255,255,255,0.6)"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;
+  timeEl.innerHTML = getTime() + (isSent ? ' ' + checkSVG : '');
+  bubble.appendChild(timeEl);
+
+  /* ── audio events ── */
   audio.addEventListener('loadedmetadata', () => {
-    durEl.textContent = formatDuration(audio.duration);
-    timeEl.textContent = '0:00';
+    duration.textContent = formatDuration(audio.duration);
   });
 
-  // Play/pause toggle
   let playing = false;
+
+  function setPlaying(val) {
+    playing = val;
+    playBtn.innerHTML = val
+      ? `<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`
+      : `<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M8 5v14l11-7z"/></svg>`;
+  }
+
   playBtn.addEventListener('click', () => {
     if (playing) {
       audio.pause();
     } else {
-      // pause all other audios on page
-      document.querySelectorAll('.audio-msg audio').forEach(a => {
-        if (a !== audio) { a.pause(); a.dispatchEvent(new Event('_tc_pause')); }
-      });
+      // pause every other audio on page
+      document.querySelectorAll('audio[data-tc]').forEach(a => { if (a !== audio) a.pause(); });
       audio.play();
     }
   });
 
-  audio.addEventListener('play', () => {
-    playing = true;
-    playBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
-  });
-  audio.addEventListener('pause', () => {
-    playing = false;
-    playBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M8 5v14l11-7z"/></svg>`;
-  });
+  audio.dataset.tc = '1';
+  audio.addEventListener('play',  () => setPlaying(true));
+  audio.addEventListener('pause', () => setPlaying(false));
   audio.addEventListener('ended', () => {
-    playing = false;
-    playBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M8 5v14l11-7z"/></svg>`;
-    progress.style.width = '0%';
-    thumb.style.left = '0%';
-    timeEl.textContent = '0:00';
-  });
-  audio.addEventListener('_tc_pause', () => {
-    playing = false;
-    playBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M8 5v14l11-7z"/></svg>`;
+    setPlaying(false);
+    prog.style.width = '0%';
+    dot.style.left = '0%';
+    elapsed.textContent = '0:00';
   });
 
-  // Progress update
   audio.addEventListener('timeupdate', () => {
     const pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
-    progress.style.width = pct + '%';
-    thumb.style.left = pct + '%';
-    timeEl.textContent = formatDuration(audio.currentTime);
+    prog.style.width = pct + '%';
+    dot.style.left = pct + '%';
+    elapsed.textContent = formatDuration(audio.currentTime);
   });
 
-  // Seek on click
-  track.addEventListener('click', (e) => {
+  /* seek click */
+  track.addEventListener('click', e => {
     const rect = track.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const pct = Math.max(0, Math.min(1, x / rect.width));
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     if (audio.duration) audio.currentTime = pct * audio.duration;
   });
 
-  // Drag seek
+  /* seek drag */
   let dragging = false;
-  thumb.addEventListener('mousedown', (e) => { dragging = true; e.preventDefault(); });
-  thumb.addEventListener('touchstart', (e) => { dragging = true; }, { passive: true });
-  document.addEventListener('mousemove', (e) => {
+  dot.addEventListener('mousedown',  e => { dragging = true; e.preventDefault(); });
+  dot.addEventListener('touchstart', () => { dragging = true; }, { passive: true });
+  const onMove = (clientX) => {
     if (!dragging) return;
     const rect = track.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const pct = Math.max(0, Math.min(1, x / rect.width));
+    const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     if (audio.duration) audio.currentTime = pct * audio.duration;
-  });
-  document.addEventListener('touchmove', (e) => {
-    if (!dragging) return;
-    const rect = track.getBoundingClientRect();
-    const x = e.touches[0].clientX - rect.left;
-    const pct = Math.max(0, Math.min(1, x / rect.width));
-    if (audio.duration) audio.currentTime = pct * audio.duration;
-  }, { passive: true });
-  document.addEventListener('mouseup', () => { dragging = false; });
-  document.addEventListener('touchend', () => { dragging = false; });
+  };
+  document.addEventListener('mousemove',  e => onMove(e.clientX));
+  document.addEventListener('touchmove',  e => onMove(e.touches[0].clientX), { passive: true });
+  document.addEventListener('mouseup',    () => { dragging = false; });
+  document.addEventListener('touchend',   () => { dragging = false; });
 
-  const infoRow = document.createElement('div');
-  infoRow.className = 'audio-info-row';
-  infoRow.appendChild(timeEl);
-  infoRow.appendChild(durEl);
-
-  const bodyCol = document.createElement('div');
-  bodyCol.className = 'audio-body-col';
-  bodyCol.appendChild(trackWrap);
-  bodyCol.appendChild(infoRow);
-
-  wrapper.appendChild(audio);
-  wrapper.appendChild(playBtn);
-  wrapper.appendChild(bodyCol);
-
-  return wrapper;
+  return bubble;
 }
 
-/* ── Build a message row ── */
+/* ════════════════════════════════════
+   appendAudioMessage — builds the full
+   msg-row and appends to container
+   ════════════════════════════════════ */
+function appendAudioMessage(dataURL, filename, side, senderName, container) {
+  const bubble = buildAudioBubble(dataURL, filename, side);
+
+  const msgRow = document.createElement('div');
+  msgRow.className = `msg-row ${side === 'sent' ? 'sent' : ''} msg-appear`;
+
+  const col = document.createElement('div');
+
+  if (side === 'received') {
+    const color = getAvatarColor(senderName);
+    const ch = (senderName || '?')[0].toUpperCase();
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'bubble-name';
+    nameEl.style.color = color;
+    nameEl.textContent = senderName;
+
+    const avatarEl = document.createElement('div');
+    avatarEl.className = 'avatar';
+    avatarEl.style.background = color;
+    avatarEl.textContent = ch;
+
+    col.appendChild(nameEl);
+    col.appendChild(bubble);
+    msgRow.appendChild(avatarEl);
+    msgRow.appendChild(col);
+  } else {
+    col.style.alignItems = 'flex-end';
+    col.appendChild(bubble);
+    msgRow.appendChild(col);
+  }
+
+  container.appendChild(msgRow);
+  container.scrollTop = container.scrollHeight;
+}
+
+/* ── Build a message row (text / image) ── */
 function buildMessageRow(content, side, senderName, isHTML = false) {
   const ch    = (senderName || '?')[0].toUpperCase();
   const color = getAvatarColor(senderName);
@@ -310,78 +379,50 @@ function fileToDataURL(file) {
    ════════════════════════════════════ */
 const CHUNK_SIZE = 16 * 1024; // 16 KB
 
-/**
- * Send a file over an RTCDataChannel using 16 KB chunks.
- * Wire format:
- *   - header frame: JSON  { __tc_chunk_start: true, id, type, name, totalChunks }
- *   - data frames:  JSON  { __tc_chunk: true, id, index, data: <base64 string> }
- *   - end frame:    JSON  { __tc_chunk_end: true, id }
- */
 async function sendFileChunked(channel, file) {
   const id = Date.now() + '_' + Math.random().toString(36).slice(2);
   const dataURL = await fileToDataURL(file);
-  // Strip data URL prefix to get raw base64
   const b64 = dataURL.split(',')[1];
   const mimeType = dataURL.split(';')[0].split(':')[1];
 
-  // Split into chunks
   const chunks = [];
   for (let i = 0; i < b64.length; i += CHUNK_SIZE) {
     chunks.push(b64.slice(i, i + CHUNK_SIZE));
   }
 
-  // Header
   channel.send(JSON.stringify({
     __tc_chunk_start: true,
     id, type: mimeType, name: file.name, totalChunks: chunks.length
   }));
 
-  // Data chunks — throttled to avoid overflowing the buffer
   for (let i = 0; i < chunks.length; i++) {
-    // Wait if buffer is getting full
     while (channel.bufferedAmount > 1024 * 1024) {
       await new Promise(r => setTimeout(r, 20));
     }
     channel.send(JSON.stringify({ __tc_chunk: true, id, index: i, data: chunks[i] }));
   }
 
-  // End
   channel.send(JSON.stringify({ __tc_chunk_end: true, id }));
-
   return { id, type: mimeType, name: file.name, dataURL };
 }
 
-/**
- * ChunkedReceiver — handles incoming frames and reassembles files.
- * Usage:
- *   const recv = new ChunkedReceiver(onComplete);
- *   recv.feed(rawString);   // call from channel.onmessage
- *   onComplete({ id, type, name, dataURL }) fires when a file is ready.
- */
 class ChunkedReceiver {
   constructor(onComplete) {
     this._onComplete = onComplete;
-    this._pending = {}; // id → { type, name, totalChunks, chunks[] }
+    this._pending = {};
   }
-
   feed(raw) {
     let obj;
     try { obj = JSON.parse(raw); } catch(_) { return false; }
-
     if (obj.__tc_chunk_start) {
-      this._pending[obj.id] = {
-        type: obj.type, name: obj.name,
-        totalChunks: obj.totalChunks, chunks: new Array(obj.totalChunks)
-      };
+      this._pending[obj.id] = { type: obj.type, name: obj.name, totalChunks: obj.totalChunks, chunks: new Array(obj.totalChunks) };
       return true;
     }
-
     if (obj.__tc_chunk) {
       const p = this._pending[obj.id];
       if (p) p.chunks[obj.index] = obj.data;
       return true;
     }
-
     if (obj.__tc_chunk_end) {
       const p = this._pending[obj.id];
       if (!p) return true;
@@ -391,22 +432,17 @@ class ChunkedReceiver {
       this._onComplete({ id: obj.id, type: p.type, name: p.name, dataURL });
       return true;
     }
-
-    return false; // not a chunk frame
+    return false;
   }
 }
 
-/* ── Media message builder (images / audio) ── */
+/* ── Media message builder (images) ── */
 async function prepareMediaPayload(file) {
   const dataURL = await fileToDataURL(file);
-  const type = file.type;
-  return { type, name: file.name, dataURL };
+  return { type: file.type, name: file.name, dataURL };
 }
 
-function buildMediaNode(type, dataURL, filename, side) {
-  if (type.startsWith('audio/')) {
-    return buildAudioNode(dataURL, filename, side);
-  }
+function buildMediaNode(type, dataURL, filename) {
   if (type.startsWith('image/')) {
     const img = document.createElement('img');
     img.src = dataURL;
@@ -415,7 +451,6 @@ function buildMediaNode(type, dataURL, filename, side) {
     img.addEventListener('click', () => openLightbox(dataURL));
     return img;
   }
-  // fallback: file download link
   const a = document.createElement('a');
   a.href = dataURL; a.download = filename;
   a.textContent = `📎 ${filename}`;
@@ -423,7 +458,7 @@ function buildMediaNode(type, dataURL, filename, side) {
   return a;
 }
 
-/* ── Parse incoming wire message (legacy small messages) ── */
+/* ── Parse incoming wire message (legacy) ── */
 function parseIncoming(raw) {
   try {
     const obj = JSON.parse(raw);
