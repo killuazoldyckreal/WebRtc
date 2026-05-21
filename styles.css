@@ -133,6 +133,70 @@ body { background: #17212b; color: #fff; display: flex; flex-direction: column; 
   max-width: 300px;
   /* Do NOT set background: transparent here — each side sets its own */
 }
+.bubble.audio-bubble {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bubble.audio-bubble audio {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.ab-row {
+  width: 100%;
+  min-width: 0;
+}
+
+.ab-col {
+  overflow: hidden;
+}
+
+.ab-track-wrap {
+  width: 100%;
+}
+
+.ab-track {
+  width: 100%;
+}
+
+.ab-title {
+  max-width: 100%;
+}
+
+.ab-times {
+  margin-top: 2px;
+}
+
+.bubble.audio-bubble.sent .ab-track {
+  background: rgba(255,255,255,0.18);
+}
+
+.bubble.audio-bubble.sent .ab-progress {
+  background: #ffffff;
+}
+
+.bubble.audio-bubble.sent .ab-dot {
+  background: #ffffff;
+}
+
+.bubble.audio-bubble.received .ab-track {
+  background: rgba(255,255,255,0.12);
+}
+
+.bubble.audio-bubble.received .ab-progress {
+  background: #4da6ff;
+}
+
+.bubble.audio-bubble.received .ab-dot {
+  background: #7fc1ff;
+}
 .bubble.audio-bubble.sent     { background: linear-gradient(135deg, #1a4a7a, #2b6cb0) !important; }
 .bubble.audio-bubble.received { background: #1e2e3e !important; }
 
