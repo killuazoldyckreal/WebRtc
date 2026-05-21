@@ -500,12 +500,18 @@ function resolveMime(file) {
   return MIME_MAP[ext] || type || 'application/octet-stream';
 }
 
+function getMediaKind(type, filename) {
+  if (isAudioType(type, filename)) return 'audio';
+  if (isImageType(type, filename)) return 'image';
+  return 'file';
+}
+
 async function sendFileChunked(channel, file) {
   var id = Date.now() + '_' + Math.random().toString(36).slice(2);
   var dataURL = await fileToDataURL(file);
-
-  /* Use resolveMime so the receiver always gets a meaningful type */
   var mimeType = resolveMime(file);
+  var mediaKind = getMediaKind(mimeType, file.name);
+   
 
   var b64 = dataURL.split(',')[1];
 
@@ -518,12 +524,8 @@ async function sendFileChunked(channel, file) {
     __tc_chunk_start: true,
     id: id,
     type: mimeType,
+    kind: mediaKind,
     name: file.name,
-    kind: isAudioType(mimeType, file.name)
-      ? 'audio'
-      : isImageType(mimeType, file.name)
-      ? 'image'
-      : 'file',
     totalChunks: chunks.length
   }));
 
@@ -535,7 +537,7 @@ async function sendFileChunked(channel, file) {
   }
 
   channel.send(JSON.stringify({ __tc_chunk_end: true, id: id }));
-  return { id: id, type: mimeType, name: file.name, dataURL: dataURL };
+  return { id: id, type: mimeType, kind: mediaKind, name: file.name, dataURL: dataURL };
 }
 
 function ChunkedReceiver(onComplete) {
@@ -562,8 +564,6 @@ ChunkedReceiver.prototype.feed = function (raw) {
     if (!p2) return true;
     var b64 = p2.chunks.join('');
 
-    /* Re-resolve MIME on receiving end using extension as well,
-       in case the sender was on old Android and sent octet-stream */
     var resolvedType = p2.type;
     if (!resolvedType || resolvedType === 'application/octet-stream') {
       var ext2 = (p2.name || '').split('.').pop().toLowerCase();
