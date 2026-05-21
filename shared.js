@@ -83,18 +83,20 @@ const MUSIC_ICON_SVG = '<svg viewBox="0 0 24 24" fill="rgba(255,255,255,0.7)" wi
    ═══════════════════════════════════════════════════════════ */
 var _isOldAndroid = (function () {
   var ua = navigator.userAgent || '';
-  if (!/Android/i.test(ua)) return false;
 
-  var avMatch = ua.match(/Android\s+(\d+)/i);
-  var androidVer = avMatch ? parseInt(avMatch[1], 10) : 99;
+  var badWebView =
+    !window.AudioContext ||
+    !window.Promise ||
+    !window.customElements;
 
+  var oldChrome = false;
   var crMatch = ua.match(/Chrome\/(\d+)/i);
-  if (!crMatch) return true;               // stock browser — no Chrome token
-  var chromeVer = parseInt(crMatch[1], 10);
 
-  // Android 9 (API 28) shipped Chrome 69 as the system WebView.
-  // Chrome 70+ supports all APIs the custom player needs.
-  return (androidVer <= 9 && chromeVer < 70);
+  if (crMatch) {
+    oldChrome = parseInt(crMatch[1], 10) < 70;
+  }
+
+  return /Android/i.test(ua) && (badWebView || oldChrome);
 })();
 
 /* ── Extract album art from audio file using jsmediatags ── */
