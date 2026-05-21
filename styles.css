@@ -83,10 +83,13 @@ body { background: #17212b; color: #fff; display: flex; flex-direction: column; 
   flex-shrink: 0; gap: 8px; position: relative;
 }
 
+/* FIX: line-height:1 prevents the letter from being pushed off-center
+   by the browser's default line-height on the flex container */
 .avatar {
   width: 32px; height: 32px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-size: 13px; font-weight: 800; flex-shrink: 0;
+  line-height: 1;
 }
 
 .msg-row {
@@ -95,7 +98,7 @@ body { background: #17212b; color: #fff; display: flex; flex-direction: column; 
 .msg-row.sent { flex-direction: row-reverse; }
 
 .msg-row > div {
-  display: flex; flex-direction: column; align-items: flex-start; max-width: 72%;
+  display: flex; flex-direction: column; align-items: flex-start; max-width: 68%;
 }
 .msg-row.sent > div { align-items: flex-end; }
 
@@ -129,11 +132,9 @@ body { background: #17212b; color: #fff; display: flex; flex-direction: column; 
    ═══════════════════════════════════════ */
 .bubble.audio-bubble {
   padding: 10px 12px 8px;
-  min-width: 260px;
-  max-width: 300px;
-  /* Do NOT set background: transparent here — each side sets its own */
-}
-.bubble.audio-bubble {
+  /* FIX: reduced from 260px/300px — keeps bubble under 68% column cap on narrow screens */
+  min-width: 200px;
+  max-width: 240px;
   position: relative;
   overflow: hidden;
   display: flex;
@@ -141,69 +142,88 @@ body { background: #17212b; color: #fff; display: flex; flex-direction: column; 
   gap: 6px;
 }
 
+/* FIX: audio element must NOT be display:none on old Android WebViews —
+   kept off-screen via position:absolute in JS. Reinforce here just in case. */
 .bubble.audio-bubble audio {
-  display: none !important;
-  width: 0 !important;
-  height: 0 !important;
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
   opacity: 0 !important;
   pointer-events: none !important;
+  overflow: hidden !important;
+  clip: rect(0,0,0,0) !important;
 }
 
 .ab-row {
   width: 100%;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .ab-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   overflow: hidden;
 }
 
 .ab-track-wrap {
   width: 100%;
+  padding: 2px 0 4px;
 }
 
 .ab-track {
+  position: relative;
+  height: 3px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.22);
+  cursor: pointer;
+  user-select: none;
   width: 100%;
 }
 
 .ab-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   max-width: 100%;
 }
 
 .ab-times {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: rgba(255,255,255,0.5);
   margin-top: 2px;
 }
 
 .bubble.audio-bubble.sent .ab-track {
   background: rgba(255,255,255,0.18);
 }
-
 .bubble.audio-bubble.sent .ab-progress {
   background: #ffffff;
 }
-
 .bubble.audio-bubble.sent .ab-dot {
   background: #ffffff;
 }
-
 .bubble.audio-bubble.received .ab-track {
   background: rgba(255,255,255,0.12);
 }
-
 .bubble.audio-bubble.received .ab-progress {
   background: #4da6ff;
 }
-
 .bubble.audio-bubble.received .ab-dot {
   background: #7fc1ff;
 }
 .bubble.audio-bubble.sent     { background: linear-gradient(135deg, #1a4a7a, #2b6cb0) !important; }
 .bubble.audio-bubble.received { background: #1e2e3e !important; }
-
-/* horizontal layout row inside bubble */
-.ab-row {
-  display: flex; align-items: center; gap: 10px;
-}
 
 /* thumbnail circle */
 .ab-thumb-wrap {
@@ -231,24 +251,7 @@ body { background: #17212b; color: #fff; display: flex; flex-direction: column; 
 .ab-play:hover { background: rgba(0,0,0,0.55); }
 .ab-play:active { transform: scale(0.92); }
 
-/* right column */
-.ab-col {
-  flex: 1; min-width: 0;
-  display: flex; flex-direction: column; gap: 4px;
-}
-
-.ab-title {
-  font-size: 13px; font-weight: 700;
-  color: #fff; white-space: nowrap;
-  overflow: hidden; text-overflow: ellipsis;
-}
-
 /* track */
-.ab-track-wrap { width: 100%; padding: 2px 0 4px; }
-.ab-track {
-  position: relative; height: 3px; border-radius: 3px;
-  background: rgba(255,255,255,0.22); cursor: pointer; user-select: none;
-}
 .ab-progress {
   position: absolute; left: 0; top: 0; height: 100%;
   background: rgba(255,255,255,0.8); border-radius: 3px;
@@ -266,12 +269,6 @@ body { background: #17212b; color: #fff; display: flex; flex-direction: column; 
 /* received track accent */
 .bubble.received .ab-progress { background: #2196f3; }
 .bubble.received .ab-dot      { background: #64b5f6; }
-
-/* times */
-.ab-times {
-  display: flex; justify-content: space-between;
-  font-size: 11px; color: rgba(255,255,255,0.5);
-}
 
 /* ═══════════════════════════════════════
    CLIP / ATTACHMENT MENU

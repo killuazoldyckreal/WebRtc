@@ -78,7 +78,6 @@ const MUSIC_ICON_SVG = `<svg viewBox="0 0 24 24" fill="rgba(255,255,255,0.7)" wi
 /* ── Extract album art from audio file using jsmediatags ── */
 function extractAlbumArt(file) {
   return new Promise(resolve => {
-    // Try to load jsmediatags if not already loaded
     function tryExtract() {
       if (typeof window.jsmediatags === 'undefined') {
         resolve(null);
@@ -127,13 +126,25 @@ function buildAudioBubble(dataURL, filename, side, albumArtURL) {
   const bubble = document.createElement('div');
   bubble.className = `bubble ${side} audio-bubble`;
 
-  /* ── hidden <audio> ── */
-  const audio = new Audio();
-  audio.src = dataURL;
+  /*
+   * FIX: Old Android browsers (WebView / Chrome <70) block media loading
+   * when <audio> is display:none. Instead we use a <source> child element
+   * and hide the audio element off-screen with position:absolute so the
+   * browser still loads and decodes the media.
+   */
+  const audio = document.createElement('audio');
   audio.preload = 'metadata';
-  audio.controls = false;
-  audio.style.display = 'none';
   audio.setAttribute('playsinline', '');
+  audio.setAttribute('webkit-playsinline', '');
+  audio.setAttribute('x-webkit-airplay', 'allow');
+
+  const source = document.createElement('source');
+  source.src = dataURL;
+  audio.appendChild(source);
+
+  /* Visually hidden but NOT display:none — keeps media pipeline alive */
+  audio.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden;clip:rect(0,0,0,0);';
+  audio.dataset.tc = '1';
   bubble.appendChild(audio);
 
   /* ── layout row ── */
@@ -220,17 +231,16 @@ function buildAudioBubble(dataURL, filename, side, albumArtURL) {
   bubble.appendChild(timeEl);
 
   /* ── audio events ── */
-  audio.addEventListener('loadedmetadata', () => {
-  if (isFinite(audio.duration)) {
-    duration.textContent = formatDuration(audio.duration);
+  function trySetDuration() {
+    if (isFinite(audio.duration) && audio.duration > 0) {
+      duration.textContent = formatDuration(audio.duration);
+    }
   }
-});
 
-audio.addEventListener('canplaythrough', () => {
-  if (isFinite(audio.duration)) {
-    duration.textContent = formatDuration(audio.duration);
-  }
-});
+  audio.addEventListener('loadedmetadata', trySetDuration);
+  audio.addEventListener('canplaythrough', trySetDuration);
+  /* Fallback: some old Android browsers fire durationchange instead */
+  audio.addEventListener('durationchange', trySetDuration);
 
   let playing = false;
 
@@ -245,12 +255,19 @@ audio.addEventListener('canplaythrough', () => {
     if (playing) {
       audio.pause();
     } else {
+      /* Pause all other audio elements */
       document.querySelectorAll('audio[data-tc]').forEach(a => { if (a !== audio) a.pause(); });
-      audio.play().catch(() => {});
+      /*
+       * FIX: On old Android, .play() may return undefined (not a Promise).
+       * Guard with a check before calling .catch().
+       */
+      const playPromise = audio.play();
+      if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch(() => {});
+      }
     }
   });
 
-  audio.dataset.tc = '1';
   audio.addEventListener('play',  () => setPlaying(true));
   audio.addEventListener('pause', () => setPlaying(false));
   audio.addEventListener('ended', () => {
@@ -496,7 +513,6 @@ class ChunkedReceiver {
 /* ── Detect if MIME type is audio ── */
 function isAudioType(type, filename) {
   if (type && type.startsWith('audio/')) return true;
-  // Fallback: check file extension for when browser returns empty type
   const ext = (filename || '').split('.').pop().toLowerCase();
   return ['mp3','wav','ogg','flac','aac','m4a','opus','weba','wma','aiff'].includes(ext);
 }
@@ -511,7 +527,6 @@ function isImageType(type, filename) {
 /* ── Media message builder (images) ── */
 async function prepareMediaPayload(file) {
   const dataURL = await fileToDataURL(file);
-  // Use dataURL mime if file.type is empty
   const type = file.type || dataURL.split(';')[0].split(':')[1] || '';
   return { type, name: file.name, dataURL };
 }
