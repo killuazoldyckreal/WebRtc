@@ -149,8 +149,7 @@ body { background: #17212b; color: #fff; display: flex; flex-direction: column; 
 .bubble.audio-bubble {
   padding: 10px 12px 8px;
   /* FIX: constrain width so it never exceeds the msg-row column */
-  width: 100%;
-  max-width: 290px;
+  width: 300px;
   position: relative;
   overflow: hidden;
   display: -webkit-box;
@@ -206,6 +205,7 @@ body { background: #17212b; color: #fff; display: flex; flex-direction: column; 
   overflow: hidden;
   display: -webkit-box;
   display: -webkit-flex;
+  padding: 0 12px 0 12px;
   display: flex;
   -webkit-box-orient: vertical;
   -webkit-flex-direction: column;
