@@ -112,7 +112,7 @@ body { background: #17212b; color: #fff; display: flex; flex-direction: column; 
 .msg-row.sent { flex-direction: row-reverse; }
 
 .msg-row > div {
-  display: flex; flex-direction: column; align-items: flex-start;
+  display: flex; flex-direction: column; align-items: center;
   /* FIX: was 72% — audio bubbles were overflowing; cap tighter */
   max-width: 68%;
 }
