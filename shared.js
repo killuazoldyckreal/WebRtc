@@ -76,6 +76,50 @@ function formatDuration(secs) {
 const MUSIC_ICON_SVG = '<svg viewBox="0 0 24 24" fill="rgba(255,255,255,0.7)" width="22" height="22"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
 
 /* ═══════════════════════════════════════════════════════════
+   MIME MAP — extension → MIME type
+   Mirrors the same map in script.js so both files agree.
+   Old Android WebViews frequently return '' or
+   'application/octet-stream' even for well-known audio/image
+   formats; we derive the real MIME from the file extension so
+   every detection function works correctly on all browsers.
+   ═══════════════════════════════════════════════════════════ */
+var MIME_MAP = {
+  /* audio */
+  mp3:'audio/mpeg', wav:'audio/wav', ogg:'audio/ogg', flac:'audio/flac',
+  aac:'audio/aac', m4a:'audio/mp4', opus:'audio/opus', weba:'audio/webm',
+  wma:'audio/x-ms-wma', aiff:'audio/aiff', aif:'audio/aiff',
+  /* image */
+  jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', gif:'image/gif',
+  webp:'image/webp', bmp:'image/bmp', svg:'image/svg+xml',
+  ico:'image/x-icon', avif:'image/avif'
+};
+
+/* ── Resolve the best MIME for a file ──────────────────────
+   If the browser already gave us a real MIME (not blank /
+   octet-stream) we keep it.  Otherwise we look up the file
+   extension in MIME_MAP.  This is the key fix for old Android
+   WebViews where File.type is often empty.
+   ─────────────────────────────────────────────────────────── */
+function resolveMime(file) {
+  var type = (file && file.type) ? file.type : '';
+  if (type && type !== 'application/octet-stream') return type;
+  var ext = (file && file.name ? file.name : '').split('.').pop().toLowerCase();
+  return MIME_MAP[ext] || type || 'application/octet-stream';
+}
+
+/* ── Resolve MIME from a plain type string + filename ───────
+   Used when we only have the stored type/name strings (e.g.
+   inside ChunkedReceiver or parseIncoming) rather than a File
+   object.
+   ─────────────────────────────────────────────────────────── */
+function resolveMimeFromStrings(type, filename) {
+  var t = type || '';
+  if (t && t !== 'application/octet-stream') return t;
+  var ext = (filename || '').split('.').pop().toLowerCase();
+  return MIME_MAP[ext] || t || 'application/octet-stream';
+}
+
+/* ═══════════════════════════════════════════════════════════
    OLD ANDROID DETECTION
    Targets Android <= 9 with Chrome < 70 (or no Chrome token).
    Also catches cases where the custom player APIs simply aren't
@@ -475,31 +519,6 @@ function fileToDataURL(file) {
    ════════════════════════════════════ */
 var CHUNK_SIZE = 16 * 1024; // 16 KB
 
-/* ── Resolve best MIME for a file ──────────────────────────
-   Old Android WebViews often return '' or 'application/octet-stream'
-   for audio/image files. We derive the MIME from the extension so the
-   receiver can always identify the file type correctly.
-   ─────────────────────────────────────────────────────────── */
-var MIME_MAP = {
-  /* audio */
-  mp3:'audio/mpeg', wav:'audio/wav', ogg:'audio/ogg', flac:'audio/flac',
-  aac:'audio/aac', m4a:'audio/mp4', opus:'audio/opus', weba:'audio/webm',
-  wma:'audio/x-ms-wma', aiff:'audio/aiff', aif:'audio/aiff',
-  /* image */
-  jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', gif:'image/gif',
-  webp:'image/webp', bmp:'image/bmp', svg:'image/svg+xml',
-  ico:'image/x-icon', avif:'image/avif'
-};
-
-function resolveMime(file) {
-  var type = file.type || '';
-  /* If the browser gave us a real MIME (not empty / octet-stream) use it */
-  if (type && type !== 'application/octet-stream') return type;
-  /* Fall back to extension lookup */
-  var ext = (file.name || '').split('.').pop().toLowerCase();
-  return MIME_MAP[ext] || type || 'application/octet-stream';
-}
-
 function getMediaKind(type, filename) {
   if (isAudioType(type, filename)) return 'audio';
   if (isImageType(type, filename)) return 'image';
@@ -509,9 +528,11 @@ function getMediaKind(type, filename) {
 async function sendFileChunked(channel, file) {
   var id = Date.now() + '_' + Math.random().toString(36).slice(2);
   var dataURL = await fileToDataURL(file);
+  /* ── Use resolveMime() so old Android WebViews that return a blank
+        or generic File.type still get the correct MIME string on the
+        wire, which lets the receiver render it as audio/image properly. ── */
   var mimeType = resolveMime(file);
   var mediaKind = getMediaKind(mimeType, file.name);
-   
 
   var b64 = dataURL.split(',')[1];
 
@@ -564,11 +585,10 @@ ChunkedReceiver.prototype.feed = function (raw) {
     if (!p2) return true;
     var b64 = p2.chunks.join('');
 
-    var resolvedType = p2.type;
-    if (!resolvedType || resolvedType === 'application/octet-stream') {
-      var ext2 = (p2.name || '').split('.').pop().toLowerCase();
-      resolvedType = MIME_MAP[ext2] || resolvedType;
-    }
+    /* ── Resolve MIME from the stored type + filename so that any
+          file whose type arrived as blank / octet-stream (old Android
+          sender) is still correctly identified on the receiver side. ── */
+    var resolvedType = resolveMimeFromStrings(p2.type, p2.name);
 
     var dataURL = 'data:' + resolvedType + ';base64,' + b64;
     delete this._pending[obj.id];
@@ -578,9 +598,21 @@ ChunkedReceiver.prototype.feed = function (raw) {
   return false;
 };
 
-/* ── Detect if MIME type or filename is audio ── */
+/* ── Detect if MIME type or filename is audio ───────────────
+   Checks the MIME string first, then falls back to the file
+   extension — matching the same dual-check used in script.js.
+   ─────────────────────────────────────────────────────────── */
 function isAudioType(type, filename) {
   if (type && type.startsWith('audio/')) return true;
+  /* Also catch audio/mpeg and similar that may come through
+     as a generic MIME on some browsers */
+  if (type && MIME_MAP) {
+    var vals = Object.values ? Object.values(MIME_MAP) : Object.keys(MIME_MAP).map(function(k){ return MIME_MAP[k]; });
+    /* Only check audio entries — those whose value starts with audio/ */
+    for (var k in MIME_MAP) {
+      if (MIME_MAP[k] === type && MIME_MAP[k].startsWith('audio/')) return true;
+    }
+  }
   var ext = (filename || '').split('.').pop().toLowerCase();
   return ['mp3','wav','ogg','flac','aac','m4a','opus','weba','wma','aiff','aif'].indexOf(ext) !== -1;
 }
@@ -595,30 +627,62 @@ function isImageType(type, filename) {
 /* ── Media message builder (images / unknown files) ── */
 async function prepareMediaPayload(file) {
   var dataURL = await fileToDataURL(file);
+  /* Use resolveMime() so we always send the real MIME type,
+     not an empty string from an old Android WebView. */
   var type = resolveMime(file);
   return { type: type, name: file.name, dataURL: dataURL };
 }
 
+/* ── Build a DOM node for a received media item ─────────────
+   OLD behaviour: checked `type` string first — if the browser
+   had reported '' or 'application/octet-stream' for an audio
+   file, neither isAudioType nor isImageType would match via
+   the MIME branch, and the file fell through to the 📎 link.
+
+   NEW behaviour: resolve the true MIME via resolveMimeFromStrings()
+   before the type checks, so extension-based detection always
+   runs even when the stored type string is blank/generic.
+   ─────────────────────────────────────────────────────────── */
 function buildMediaNode(type, dataURL, filename) {
-  if (isImageType(type, filename)) {
+  /* Always resolve to the best available MIME before branching */
+  var resolvedType = resolveMimeFromStrings(type, filename);
+
+  if (isAudioType(resolvedType, filename)) {
+    /* On old Android WebViews use a native <audio> element;
+       everywhere else use the custom bubble player via
+       appendAudioMessage / buildAudioBubble.
+       Here we return a lightweight native player as a safe
+       fallback for callers that only want a DOM node. */
+    if (_isOldAndroid) {
+      var audioNative = document.createElement('audio');
+      audioNative.controls = true;
+      audioNative.preload = 'metadata';
+      audioNative.src = dataURL;
+      audioNative.style.cssText = 'width:100%;border-radius:8px;outline:none;';
+      return audioNative;
+    }
+    /* Modern browsers: return a styled native player as the
+       node-only fallback (callers that want the full custom
+       bubble should call appendAudioMessage instead). */
+    var audioModern = document.createElement('audio');
+    audioModern.controls = true;
+    audioModern.preload = 'metadata';
+    audioModern.src = dataURL;
+    audioModern.dataset.tc = '1';
+    audioModern.style.cssText = 'width:100%;border-radius:8px;outline:none;';
+    return audioModern;
+  }
+
+  if (isImageType(resolvedType, filename)) {
     var img = document.createElement('img');
     img.src = dataURL;
-    img.className = (type === 'image/gif' || filename.toLowerCase().endsWith('.gif')) ? 'chat-gif' : 'chat-img';
+    img.className = (resolvedType === 'image/gif' || filename.toLowerCase().endsWith('.gif')) ? 'chat-gif' : 'chat-img';
     img.alt = filename;
     img.addEventListener('click', function () { openLightbox(dataURL); });
     return img;
   }
-  /* Safety net: if an audio file somehow bypassed isAudioType
-     (e.g. completely unknown extension), render a minimal native player
-     rather than a broken download link */
-  if (isAudioType(type, filename)) {
-    var audioFallback = document.createElement('audio');
-    audioFallback.controls = true;
-    audioFallback.preload = 'metadata';
-    audioFallback.src = dataURL;
-    audioFallback.style.cssText = 'width:100%;border-radius:8px;outline:none;';
-    return audioFallback;
-  }
+
+  /* Generic download link for truly unknown file types */
   var a = document.createElement('a');
   a.href = dataURL; a.download = filename;
   a.textContent = '📎 ' + filename;
@@ -631,7 +695,11 @@ function parseIncoming(raw) {
   try {
     var obj = JSON.parse(raw);
     if (obj && obj.__tc_media) {
-      var node = buildMediaNode(obj.type, obj.data, obj.name);
+      /* Resolve the MIME before building the node so audio files
+         sent from old Android browsers (where File.type was '')
+         are correctly identified on the receiving end. */
+      var resolvedType = resolveMimeFromStrings(obj.type, obj.name);
+      var node = buildMediaNode(resolvedType, obj.data, obj.name);
       return { isMedia: true, node: node };
     }
   } catch (_) {}
