@@ -276,6 +276,7 @@
 
     localConnection.ondatachannel = event => {
       receiveChannel = event.channel;
+      receiveChannel.binaryType = 'arraybuffer';
 
       chunkedReceiver = new ChunkedReceiver(({ type, kind, name, blob }) => {
         if (kind === 'audio' || isAudioType(type, name)) {
@@ -295,6 +296,7 @@
 
       receiveChannel.onmessage = event => {
         const raw = event.data;
+        if (raw instanceof ArrayBuffer) { chunkedReceiver.feed(raw); return; }
         if (typeof raw !== 'string') return;
         if (chunkedReceiver.feed(raw)) return;
         if (raw.startsWith('NAME:')) {
