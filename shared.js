@@ -66,6 +66,8 @@ function setStatus(el, type, label) {
 
 /* ═══════════════════════════════════════════════════════════
    MIME MAP — extension → MIME type
+   Used ONLY at SEND time to resolve a file's MIME before
+   transmitting it. Never used on the receiver side.
    ═══════════════════════════════════════════════════════════ */
 var MIME_MAP = {
   /* audio */
@@ -78,7 +80,11 @@ var MIME_MAP = {
   ico:'image/x-icon', avif:'image/avif'
 };
 
-/* ── Resolve the best MIME for a file ── */
+/**
+ * Resolve the best MIME for a File object at send time.
+ * Falls back to extension map, then 'application/octet-stream'.
+ * This is the ONLY place MIME guessing is allowed.
+ */
 function resolveMime(file) {
   var type = (file && file.type) ? file.type : '';
   if (type && type !== 'application/octet-stream') return type;
@@ -86,46 +92,16 @@ function resolveMime(file) {
   return MIME_MAP[ext] || type || 'application/octet-stream';
 }
 
-/* ── Resolve MIME from a plain type string + filename ── */
-function resolveMimeFromStrings(type, filename) {
-  var t = type || '';
-  if (t && t !== 'application/octet-stream') return t;
-  var ext = (filename || '').split('.').pop().toLowerCase();
-  return MIME_MAP[ext] || t || 'application/octet-stream';
-}
-
-/* ── Detect if MIME type or filename is audio ── */
-function isAudioType(type, filename) {
-  if (type && type.startsWith('audio/')) return true;
-  var ext = (filename || '').split('.').pop().toLowerCase();
-  return ['mp3','wav','ogg','aac','m4a','flac','opus','weba','wma','aiff','aif'].indexOf(ext) !== -1;
-}
-
-/* ── Detect if MIME type or filename is image ── */
-function isImageType(type, filename) {
-  if (type && type.startsWith('image/')) return true;
-  var ext = (filename || '').split('.').pop().toLowerCase();
-  return ['jpg','jpeg','png','gif','webp','bmp','svg','ico','avif'].indexOf(ext) !== -1;
-}
-
-/* ── Extract album art from audio file using jsmediatags (if available) ── */
-function extractAlbumArt(file) {
-  return new Promise(function(resolve) {
-    // Resolve immediately with null if library not loaded
-    if (typeof jsmediatags === 'undefined') { resolve(null); return; }
-    jsmediatags.read(file, {
-      onSuccess: function(tag) {
-        try {
-          var pic = tag.tags.picture;
-          if (!pic) { resolve(null); return; }
-          var bytes = new Uint8Array(pic.data);
-          var blob = new Blob([bytes], { type: pic.format });
-          resolve(URL.createObjectURL(blob));
-        } catch(e) { resolve(null); }
-      },
-      onError: function() { resolve(null); }
-    });
-  });
+/**
+ * Classify a file into an explicit media kind at SEND time only.
+ * Returns: 'audio' | 'image' | 'file'
+ * The returned kind is embedded in the chunk-start header so the
+ * receiver never needs to re-detect it.
+ */
+function classifyKind(mimeType) {
+  if (mimeType.startsWith('audio/')) return 'audio';
+  if (mimeType.startsWith('image/')) return 'image';
+  return 'file';
 }
 
 /* ── Grow textarea with content ── */
@@ -166,40 +142,55 @@ function formatDuration(secs) {
   return m + ':' + String(s % 60).padStart(2, '0');
 }
 
-/* ════════════════════════════════════════════════════════════
-   appendAudioMessage — renders audio player bubble.
-   blob     : Blob of the audio data (always a real Blob now)
-   meta     : filename string OR { name, artist, thumbnail }
-   side     : 'sent' | 'received'
-   senderName : display name
-   container  : messages DOM element
-   albumArt   : optional thumbnail URL string
-   ════════════════════════════════════════════════════════════ */
-function appendAudioMessage(blob, meta, side, senderName, container, albumArt) {
-  // Normalise meta
-  if (typeof meta === 'string') {
-    meta = { name: meta, artist: '', thumbnail: albumArt || null };
-  } else {
-    meta = meta || {};
-    if (albumArt) meta.thumbnail = albumArt;
-  }
+/* ── Extract album art from audio file using jsmediatags (if available) ── */
+function extractAlbumArt(file) {
+  return new Promise(function(resolve) {
+    if (typeof jsmediatags === 'undefined') { resolve(null); return; }
+    jsmediatags.read(file, {
+      onSuccess: function(tag) {
+        try {
+          var pic = tag.tags.picture;
+          if (!pic) { resolve(null); return; }
+          var bytes = new Uint8Array(pic.data);
+          var blob = new Blob([bytes], { type: pic.format });
+          resolve(URL.createObjectURL(blob));
+        } catch(e) { resolve(null); }
+      },
+      onError: function() { resolve(null); }
+    });
+  });
+}
 
+/* ════════════════════════════════════════════════════════════
+   appendAudioMessage
+   Renders a Telegram-style audio player bubble.
+
+   Parameters
+   ----------
+   blob       : Blob  — raw audio data
+   name       : string — filename / display title
+   side       : 'sent' | 'received'
+   senderName : string
+   container  : HTMLElement — #messages
+   albumArt   : string | null — object URL for thumbnail
+   ════════════════════════════════════════════════════════════ */
+function appendAudioMessage(blob, name, side, senderName, container, albumArt) {
   var url = URL.createObjectURL(blob);
 
-  // Build audio element
+  // Build audio engine (hidden)
   var audio = document.createElement('audio');
   audio.className = 'tc-audio-engine';
   audio.preload = 'metadata';
   audio.src = url;
 
+  var isSent = side === 'sent';
+
   // Build bubble
   var bubble = document.createElement('div');
-  var isSent = side === 'sent';
   bubble.className = 'bubble audio-bubble ' + (isSent ? 'sent' : 'received');
 
-  // Thumbnail HTML
-  var thumbInner = meta.thumbnail
-    ? '<img src="' + meta.thumbnail + '" alt="art">'
+  var thumbInner = albumArt
+    ? '<img src="' + albumArt + '" alt="art">'
     : '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="21" cy="16" r="3"/></svg>';
 
   bubble.innerHTML =
@@ -212,7 +203,7 @@ function appendAudioMessage(blob, meta, side, senderName, container, albumArt) {
         '</button>' +
       '</div>' +
       '<div class="ab-col">' +
-        '<div class="ab-title">' + sanitizeHTML(meta.name || 'Audio') + '</div>' +
+        '<div class="ab-title">' + sanitizeHTML(name || 'Audio') + '</div>' +
         '<div class="ab-track-wrap">' +
           '<div class="ab-track">' +
             '<div class="ab-progress"></div>' +
@@ -270,7 +261,6 @@ function appendAudioMessage(blob, meta, side, senderName, container, albumArt) {
     else audio.pause();
   });
 
-  // Seek by clicking the track
   track.addEventListener('click', function(e) {
     if (!audio.duration) return;
     var rect = track.getBoundingClientRect();
@@ -278,7 +268,6 @@ function appendAudioMessage(blob, meta, side, senderName, container, albumArt) {
     audio.currentTime = pct * audio.duration;
   });
 
-  // Drag the dot
   (function() {
     var dragging = false;
     dot.addEventListener('mousedown', function(e) { dragging = true; e.preventDefault(); });
@@ -305,7 +294,6 @@ function appendAudioMessage(blob, meta, side, senderName, container, albumArt) {
 
   var col = document.createElement('div');
 
-  // Timestamp row below bubble
   var timeEl = document.createElement('div');
   timeEl.style.cssText = 'font-size:10px;color:rgba(170,197,217,0.6);margin-top:2px;' +
     (isSent ? 'text-align:right;padding-right:4px;' : 'padding-left:4px;');
@@ -343,40 +331,60 @@ function appendAudioMessage(blob, meta, side, senderName, container, albumArt) {
 }
 
 /* ════════════════════════════════════════════════════════════
-   CHUNKED TRANSFER over RTCDataChannel
+   CHUNKED TRANSFER — explicit kind protocol
+   ════════════════════════════════════════════════════════════
+
+   Wire format
+   ───────────
+   1. JSON  { __tc_chunk_start: true, id, type, kind, name, size, totalChunks }
+              kind is one of: 'audio' | 'image' | 'file'
+              type is the fully-resolved MIME string (e.g. 'audio/mpeg')
+              Both are resolved ONCE at the sender and carried verbatim.
+
+   2. Binary frames: [36-byte UTF-8 id] + [payload slice]
+
+   3. JSON  { __tc_chunk_end: true, id }
+
+   The receiver stores kind/type from the start header and uses them
+   directly in onComplete — no MIME re-detection, no fallback guessing.
    ════════════════════════════════════════════════════════════ */
 var CHUNK_SIZE = 16 * 1024; // 16 KB
 
-function getMediaKind(type, filename) {
-  if (isAudioType(type, filename)) return 'audio';
-  if (isImageType(type, filename)) return 'image';
-  return 'file';
-}
-
+/**
+ * Send a File over an RTCDataChannel using chunked transfer.
+ * Resolves MIME and kind ONCE here; embeds both in the start header.
+ *
+ * @param {RTCDataChannel} channel
+ * @param {File} file
+ * @returns {Promise<{ id, type, kind, name }>}
+ */
 async function sendFileChunked(channel, file) {
   var id = Date.now() + '_' + Math.random().toString(36).slice(2);
-  var mimeType = resolveMime(file);
-  var mediaKind = getMediaKind(mimeType, file.name);
+
+  // ── Resolve MIME and kind exactly once, at the sender ──
+  var mimeType  = resolveMime(file);       // authoritative MIME
+  var mediaKind = classifyKind(mimeType);  // 'audio' | 'image' | 'file'
+
   var buf = await file.arrayBuffer();
   var totalChunks = Math.ceil(buf.byteLength / CHUNK_SIZE) || 1;
 
-  // Send metadata header as JSON
+  // Header carries the authoritative type AND kind
   channel.send(JSON.stringify({
     __tc_chunk_start: true,
-    id: id,
-    type: mimeType,
-    kind: mediaKind,
-    name: file.name,
-    size: buf.byteLength,
+    id:          id,
+    type:        mimeType,   // fully resolved — receiver uses as-is
+    kind:        mediaKind,  // explicit group — receiver uses as-is
+    name:        file.name,
+    size:        buf.byteLength,
     totalChunks: totalChunks
   }));
 
-  // Send each chunk as a binary frame: 36-byte id prefix + payload
+  // Binary chunk frames: 36-byte id prefix + payload
   for (var j = 0; j < totalChunks; j++) {
     while (channel.bufferedAmount > 4 * 1024 * 1024) {
       await new Promise(function (r) { setTimeout(r, 20); });
     }
-    var slice = buf.slice(j * CHUNK_SIZE, (j + 1) * CHUNK_SIZE);
+    var slice  = buf.slice(j * CHUNK_SIZE, (j + 1) * CHUNK_SIZE);
     var header = new ArrayBuffer(36);
     var idBytes = new TextEncoder().encode(id.padEnd(36, '\0'));
     new Uint8Array(header).set(idBytes.slice(0, 36));
@@ -390,16 +398,31 @@ async function sendFileChunked(channel, file) {
   return { id: id, type: mimeType, kind: mediaKind, name: file.name };
 }
 
+/**
+ * ChunkedReceiver
+ * Reassembles chunked binary transfers.
+ *
+ * onComplete callback receives:
+ *   { id, type, kind, name, blob }
+ *
+ *   kind  — exactly as sent: 'audio' | 'image' | 'file'
+ *   type  — exactly as sent: fully-resolved MIME string
+ *   blob  — reassembled Blob with the sender's MIME already applied
+ *
+ * Callers MUST branch on `kind` directly. Do NOT re-detect from blob.type
+ * or filename. The sender is the single source of truth for both.
+ */
 function ChunkedReceiver(onComplete) {
   this._onComplete = onComplete;
-  this._pending = {};
+  this._pending    = {};
 }
+
 ChunkedReceiver.prototype.feed = function (raw) {
-  // Binary frame: first 36 bytes = id, rest = payload
+  // ── Binary frame: [36-byte id][payload] ──
   if (raw instanceof ArrayBuffer) {
     if (raw.byteLength < 36) return true;
     var id = new TextDecoder().decode(new Uint8Array(raw, 0, 36)).replace(/\0/g, '');
-    var p = this._pending[id];
+    var p  = this._pending[id];
     if (p) {
       p.chunks.push(raw.slice(36));
       p.received += raw.byteLength - 36;
@@ -407,14 +430,19 @@ ChunkedReceiver.prototype.feed = function (raw) {
     return true;
   }
 
-  // JSON control frames
+  // ── JSON control frames ──
   var obj;
   try { obj = JSON.parse(raw); } catch (_) { return false; }
 
   if (obj.__tc_chunk_start) {
+    // Store kind and type verbatim from the sender — no local re-classification
     this._pending[obj.id] = {
-      type: obj.type, kind: obj.kind, name: obj.name,
-      size: obj.size, chunks: [], received: 0
+      type:     obj.type,   // sender's authoritative MIME
+      kind:     obj.kind,   // sender's authoritative kind: 'audio'|'image'|'file'
+      name:     obj.name,
+      size:     obj.size,
+      chunks:   [],
+      received: 0
     };
     return true;
   }
@@ -422,54 +450,57 @@ ChunkedReceiver.prototype.feed = function (raw) {
   if (obj.__tc_chunk_end) {
     var p2 = this._pending[obj.id];
     if (!p2) return true;
-    var resolvedType = resolveMimeFromStrings(p2.type, p2.name);
-    var blob = new Blob(p2.chunks, { type: resolvedType });
+
+    // Build blob with the sender's MIME — no guessing needed
+    var blob = new Blob(p2.chunks, { type: p2.type });
     delete this._pending[obj.id];
-    this._onComplete({ id: obj.id, type: resolvedType, kind: p2.kind, name: p2.name, blob: blob });
+
+    // Deliver with explicit kind and type; callers branch on kind
+    this._onComplete({
+      id:   obj.id,
+      type: p2.type,   // sender's MIME, verbatim
+      kind: p2.kind,   // sender's kind, verbatim
+      name: p2.name,
+      blob: blob
+    });
     return true;
   }
 
   return false;
 };
 
-/* ── Build a DOM node for a received image/file blob ── */
-function buildMediaNode(blob, filename) {
-  var resolvedType = resolveMimeFromStrings(blob.type, filename);
+/* ════════════════════════════════════════════════════════════
+   buildImageNode
+   Build a DOM node for a received image blob.
+   Called only when kind === 'image' (guaranteed by caller).
+   No MIME re-detection needed — type comes from the sender.
+   ════════════════════════════════════════════════════════════ */
+function buildImageNode(blob, filename, mimeType) {
   var url = URL.createObjectURL(blob);
+  var img = document.createElement('img');
+  img.src = url;
+  img.className = (mimeType === 'image/gif' || (filename || '').toLowerCase().endsWith('.gif'))
+    ? 'chat-gif'
+    : 'chat-img';
+  img.alt = filename || 'image';
+  img.addEventListener('click', function () { openLightbox(url); });
+  return img;
+}
 
-  if (isImageType(resolvedType, filename)) {
-    var img = document.createElement('img');
-    img.src = url;
-    img.className = (resolvedType === 'image/gif' || filename.toLowerCase().endsWith('.gif')) ? 'chat-gif' : 'chat-img';
-    img.alt = filename;
-    img.addEventListener('click', function () { openLightbox(url); });
-    return img;
-  }
-
+/**
+ * buildFileNode — generic download link for kind === 'file'
+ */
+function buildFileNode(blob, filename) {
+  var url = URL.createObjectURL(blob);
   var a = document.createElement('a');
-  a.href = url; a.download = filename;
-  a.textContent = '📎 ' + filename;
+  a.href = url;
+  a.download = filename || 'file';
+  a.textContent = '📎 ' + (filename || 'file');
   a.style.color = '#64b5f6';
   return a;
 }
 
-/* ── Parse incoming wire message (legacy inline media) ── */
-function parseIncoming(raw) {
-  try {
-    var obj = JSON.parse(raw);
-    if (obj && obj.__tc_media) {
-      var resolvedType = resolveMimeFromStrings(obj.type, obj.name);
-      var b64 = obj.data.split(',')[1] || obj.data;
-      var bytes = Uint8Array.from(atob(b64), function(c) { return c.charCodeAt(0); });
-      var blob = new Blob([bytes], { type: resolvedType });
-      var node = buildMediaNode(blob, obj.name);
-      return { isMedia: true, node: node };
-    }
-  } catch (_) {}
-  return { isMedia: false };
-}
-
-/* ── Build a message row (text / image) ── */
+/* ── Build a message row (text / image / file node) ── */
 function buildMessageRow(content, side, senderName, isHTML) {
   isHTML = isHTML || false;
   var ch    = (senderName || '?')[0].toUpperCase();
@@ -539,14 +570,20 @@ function buildMessageRow(content, side, senderName, isHTML) {
   return row;
 }
 
-/* ── Media message builder — returns Blob for audio, dataURL for images ── */
+/* ════════════════════════════════════════════════════════════
+   prepareMediaPayload
+   Called at SEND time to resolve MIME + kind for a local File.
+   Returns an object ready for both local preview and wire transfer.
+
+   { type, kind, name, blob }   — for audio  (kind === 'audio')
+   { type, kind, name, blob }   — for images (kind === 'image')
+   { type, kind, name, blob }   — for other  (kind === 'file')
+
+   Callers MUST branch on kind, never re-detect from type/name.
+   ════════════════════════════════════════════════════════════ */
 async function prepareMediaPayload(file) {
   var type = resolveMime(file);
-  var kind = getMediaKind(type, file.name);
-  if (kind === 'audio') {
-    var blob = new Blob([await file.arrayBuffer()], { type: type });
-    return { type: type, kind: kind, name: file.name, blob: blob };
-  }
-  var dataURL = await fileToDataURL(file);
-  return { type: type, kind: kind, name: file.name, dataURL: dataURL };
+  var kind = classifyKind(type);
+  var blob = new Blob([await file.arrayBuffer()], { type: type });
+  return { type: type, kind: kind, name: file.name, blob: blob };
 }

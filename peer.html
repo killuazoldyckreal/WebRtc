@@ -94,7 +94,6 @@
   </div>
 
   <div id="input-area">
-    <!-- multiple attribute added for multi-image/audio selection -->
     <input type="file" id="img-input"   accept="image/*,.gif" class="hidden" multiple/>
     <input type="file" id="audio-input" accept="audio/*"      class="hidden" multiple/>
 
@@ -236,17 +235,31 @@
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });
 
-  /* ── Send media (chunked) ── */
+  /* ════════════════════════════════════════════════════
+     sendMediaFile
+     Resolves kind ONCE via prepareMediaPayload, then:
+     - Renders local preview using that explicit kind
+     - Sends wire transfer with that same kind embedded
+     No re-detection at any point after this.
+     ════════════════════════════════════════════════════ */
   async function sendMediaFile(file) {
     if (!receiveChannel || receiveChannel.readyState !== 'open') { alert('Not connected yet.'); return; }
+
+    // kind and type resolved once, here, at send time
     const payload = await prepareMediaPayload(file);
-    const { type, kind, name } = payload;
-    if (kind === 'audio' || isAudioType(type, name)) {
+    const { type, kind, name, blob } = payload;
+
+    // Branch on explicit kind — no fallback detection
+    if (kind === 'audio') {
       const albumArt = await extractAlbumArt(file);
-      appendAudioMessage(payload.blob, name, 'sent', peerDisplayName, messagesEl, albumArt);
+      appendAudioMessage(blob, name, 'sent', peerDisplayName, messagesEl, albumArt);
+    } else if (kind === 'image') {
+      appendMessage(buildImageNode(blob, name, type), 'sent', peerDisplayName);
     } else {
-      appendMessage(buildMediaNode(new Blob([await file.arrayBuffer()], { type }), name), 'sent', peerDisplayName);
+      appendMessage(buildFileNode(blob, name), 'sent', peerDisplayName);
     }
+
+    // Wire transfer carries the same kind + type in its header
     await sendFileChunked(receiveChannel, file);
   }
 
@@ -278,11 +291,22 @@
       receiveChannel = event.channel;
       receiveChannel.binaryType = 'arraybuffer';
 
+      /* ════════════════════════════════════════════════════
+         ChunkedReceiver onComplete
+         kind and type arrive verbatim from the sender.
+         Branch on kind directly — no isAudioType(), no
+         MIME re-detection, no fallback ambiguity.
+         ════════════════════════════════════════════════════ */
       chunkedReceiver = new ChunkedReceiver(({ type, kind, name, blob }) => {
-        if (kind === 'audio' || isAudioType(type, name)) {
+        if (kind === 'audio') {
+          // kind === 'audio': render audio player; blob.type is already correct
           appendAudioMessage(blob, name, 'received', hostName, messagesEl, null);
+        } else if (kind === 'image') {
+          // kind === 'image': render image; type is the sender's resolved MIME
+          appendMessage(buildImageNode(blob, name, type), 'received', hostName);
         } else {
-          appendMessage(buildMediaNode(blob, name), 'received', hostName);
+          // kind === 'file': render download link
+          appendMessage(buildFileNode(blob, name), 'received', hostName);
         }
       });
 
@@ -306,8 +330,6 @@
           setStatus(topbarStatusEl, 'connected', hostName);
           return;
         }
-        const parsed = parseIncoming(raw);
-        if (parsed.isMedia) { appendMessage(parsed.node, 'received', hostName); return; }
         appendMessage(sanitizeHTML(raw).replace(/&lt;br&gt;/g, '<br>'), 'received', hostName, true);
       };
 
