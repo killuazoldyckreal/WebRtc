@@ -64,24 +64,8 @@ function setStatus(el, type, label) {
   el.innerHTML = dot + '<span>' + label + '</span>';
 }
 
-/* ── Format seconds → m:ss ── */
-function formatDuration(secs) {
-  if (!isFinite(secs) || secs < 0) return '0:00';
-  const m = Math.floor(secs / 60);
-  const s = Math.floor(secs % 60);
-  return m + ':' + (s < 10 ? '0' + s : s);
-}
-
-/* ── Music note SVG (default thumbnail) ── */
-const MUSIC_ICON_SVG = '<svg viewBox="0 0 24 24" fill="rgba(255,255,255,0.7)" width="22" height="22"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>';
-
 /* ═══════════════════════════════════════════════════════════
    MIME MAP — extension → MIME type
-   Mirrors the same map in script.js so both files agree.
-   Old Android WebViews frequently return '' or
-   'application/octet-stream' even for well-known audio/image
-   formats; we derive the real MIME from the file extension so
-   every detection function works correctly on all browsers.
    ═══════════════════════════════════════════════════════════ */
 var MIME_MAP = {
   /* audio */
@@ -94,12 +78,7 @@ var MIME_MAP = {
   ico:'image/x-icon', avif:'image/avif'
 };
 
-/* ── Resolve the best MIME for a file ──────────────────────
-   If the browser already gave us a real MIME (not blank /
-   octet-stream) we keep it.  Otherwise we look up the file
-   extension in MIME_MAP.  This is the key fix for old Android
-   WebViews where File.type is often empty.
-   ─────────────────────────────────────────────────────────── */
+/* ── Resolve the best MIME for a file ── */
 function resolveMime(file) {
   var type = (file && file.type) ? file.type : '';
   if (type && type !== 'application/octet-stream') return type;
@@ -107,11 +86,7 @@ function resolveMime(file) {
   return MIME_MAP[ext] || type || 'application/octet-stream';
 }
 
-/* ── Resolve MIME from a plain type string + filename ───────
-   Used when we only have the stored type/name strings (e.g.
-   inside ChunkedReceiver or parseIncoming) rather than a File
-   object.
-   ─────────────────────────────────────────────────────────── */
+/* ── Resolve MIME from a plain type string + filename ── */
 function resolveMimeFromStrings(type, filename) {
   var t = type || '';
   if (t && t !== 'application/octet-stream') return t;
@@ -119,267 +94,159 @@ function resolveMimeFromStrings(type, filename) {
   return MIME_MAP[ext] || t || 'application/octet-stream';
 }
 
-/* ═══════════════════════════════════════════════════════════
-   OLD ANDROID DETECTION
-   Targets Android <= 9 with Chrome < 70 (or no Chrome token).
-   Also catches cases where the custom player APIs simply aren't
-   available (no AudioContext / broken Web Audio on old WebViews).
-   ═══════════════════════════════════════════════════════════ */
-var _isOldAndroid = (function () {
-  var ua = navigator.userAgent || '';
+/* ── Detect if MIME type or filename is image ── */
+function isImageType(type, filename) {
+  if (type && type.startsWith('image/')) return true;
+  var ext = (filename || '').split('.').pop().toLowerCase();
+  return ['jpg','jpeg','png','gif','webp','bmp','svg','ico','avif'].indexOf(ext) !== -1;
+}
 
-  var badWebView =
-    !window.AudioContext ||
-    !window.Promise ||
-    !window.customElements;
+/* ── Grow textarea with content ── */
+function autoGrow(el) {
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
 
-  var oldChrome = false;
-  var crMatch = ua.match(/Chrome\/(\d+)/i);
-
-  if (crMatch) {
-    oldChrome = parseInt(crMatch[1], 10) < 70;
-  }
-
-  return /Android/i.test(ua) && (badWebView || oldChrome);
-})();
-
-/* ── Extract album art from audio file using jsmediatags ── */
-function extractAlbumArt(file) {
-  return new Promise(function (resolve) {
-    function tryExtract() {
-      if (typeof window.jsmediatags === 'undefined') { resolve(null); return; }
-      window.jsmediatags.read(file, {
-        onSuccess: function (tag) {
-          try {
-            var pic = tag.tags.picture;
-            if (pic) {
-              var base64 = '';
-              var data = pic.data;
-              for (var i = 0; i < data.length; i++) { base64 += String.fromCharCode(data[i]); }
-              resolve('data:' + pic.format + ';base64,' + btoa(base64));
-            } else { resolve(null); }
-          } catch (_) { resolve(null); }
-        },
-        onError: function () { resolve(null); }
-      });
-    }
-    if (typeof window.jsmediatags === 'undefined') {
-      var s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.7/jsmediatags.min.js';
-      s.onload = tryExtract;
-      s.onerror = function () { resolve(null); };
-      document.head.appendChild(s);
-    } else { tryExtract(); }
+/* ── Encode a File to base64 data-URL ── */
+function fileToDataURL(file) {
+  return new Promise(function (res, rej) {
+    var r = new FileReader();
+    r.onload  = function () { res(r.result); };
+    r.onerror = function () { rej(new Error('Read failed')); };
+    r.readAsDataURL(file);
   });
 }
 
-/* ═══════════════════════════════════════════════════════════
-   buildAudioBubble
-   On OLD Android  → native <audio controls> inside the bubble
-   On modern       → custom player (unchanged behaviour)
-   side: 'sent' | 'received'
-   ═══════════════════════════════════════════════════════════ */
-function buildAudioBubble(dataURL, filename, side, albumArtURL) {
-  var isSent = side === 'sent';
-
-  /* ── outer bubble ── */
-  var bubble = document.createElement('div');
-  bubble.className = 'bubble ' + side + ' audio-bubble';
-
-  /* ══════════════════════════════════════════
-     OLD ANDROID PATH — native <audio controls>
-     ══════════════════════════════════════════ */
-  if (_isOldAndroid) {
-    /* Title */
-    var nativeTitle = document.createElement('div');
-    nativeTitle.className = 'ab-title';
-    nativeTitle.textContent = filename.replace(/\.[^.]+$/, '') || 'Audio';
-    nativeTitle.title = filename;
-
-    /* Native audio element */
-    var nativeAudio = document.createElement('audio');
-    nativeAudio.className = 'tc-audio-native';
-    nativeAudio.controls = true;
-    nativeAudio.preload = 'metadata';
-    nativeAudio.src = dataURL;
-
-    /* Timestamp */
-    var nativeTime = document.createElement('div');
-    nativeTime.className = 'bubble-time';
-    var checkSVG = '<svg style="display:inline;vertical-align:-1px" width="12" height="12" viewBox="0 0 24 24" fill="rgba(255,255,255,0.6)"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
-    nativeTime.innerHTML = getTime() + (isSent ? ' ' + checkSVG : '');
-
-    bubble.appendChild(nativeTitle);
-    bubble.appendChild(nativeAudio);
-    bubble.appendChild(nativeTime);
-    return bubble;
+/* ── Lightbox for images ── */
+function openLightbox(src) {
+  var lb = document.getElementById('lightbox');
+  if (!lb) {
+    lb = document.createElement('div');
+    lb.id = 'lightbox';
+    lb.innerHTML = '<img src=""/>';
+    lb.addEventListener('click', function () { lb.remove(); });
+    document.body.appendChild(lb);
   }
+  lb.querySelector('img').src = src;
+  lb.style.display = 'flex';
+}
 
-  /* ══════════════════════════════════════════
-     MODERN PATH — custom player
-     ══════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════
+   AUDIO — buildAudioPlayer (from script.js)
+   Builds the custom audio player DOM node from a Blob + meta.
+   meta = { name, artist, thumbnail }
+   isSent = boolean (kept for API parity)
+   ═══════════════════════════════════════════════════════════ */
+function buildAudioPlayer(blob, meta, isSent) {
+  const url = URL.createObjectURL(blob);
+  const div = document.createElement('div');
+  div.className = 'audio-player';
 
-  /* hidden <audio> engine */
-  var audio = document.createElement('audio');
-  audio.className = 'tc-audio-engine';
-  audio.src = dataURL;
+  const thumbHtml = meta.thumbnail
+    ? `<div class="audio-thumb"><img src="${meta.thumbnail}" alt="thumb"></div>`
+    : `<div class="audio-thumb-default">
+         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" color="#fff">
+           <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="21" cy="16" r="3"/>
+         </svg>
+       </div>`;
+
+  div.innerHTML = `
+    <div class="audio-top">
+      ${thumbHtml}
+      <div class="audio-info">
+        <div class="audio-title">${meta.name || 'Audio'}</div>
+        <div class="audio-artist">${meta.artist || ''}</div>
+      </div>
+    </div>
+    <div class="audio-controls">
+      <button class="audio-play-btn" aria-label="Play/Pause" type="button">
+        <svg class="play-icon" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M11.596 8.697l-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.697l6.363 3.692a.802.802 0 0 1 0 1.394z"/>
+        </svg>
+        <svg class="pause-icon hidden" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/>
+        </svg>
+      </button>
+      <div class="audio-seek-area">
+        <input type="range" class="audio-seek" min="0" max="100" value="0" step="0.1">
+        <div class="audio-time-row">
+          <span class="audio-current">0:00</span>
+          <span class="audio-duration">-:--</span>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const audio = document.createElement('audio');
+  audio.src = url;
   audio.preload = 'metadata';
-  bubble.appendChild(audio);
 
-  /* layout row */
-  var row = document.createElement('div');
-  row.className = 'ab-row';
+  const playBtn = div.querySelector('.audio-play-btn');
+  const playIcon = div.querySelector('.play-icon');
+  const pauseIcon = div.querySelector('.pause-icon');
+  const seekEl = div.querySelector('.audio-seek');
+  const curEl = div.querySelector('.audio-current');
+  const durEl = div.querySelector('.audio-duration');
 
-  /* thumbnail circle */
-  var thumb = document.createElement('div');
-  thumb.className = 'ab-thumb';
-  if (albumArtURL) {
-    var img = document.createElement('img');
-    img.src = albumArtURL;
-    img.alt = '';
-    thumb.appendChild(img);
-  } else {
-    thumb.innerHTML = MUSIC_ICON_SVG;
-  }
-
-  /* play/pause button (sits on top of thumb) */
-  var playBtn = document.createElement('button');
-  playBtn.className = 'ab-play';
-  playBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M8 5v14l11-7z"/></svg>';
-
-  var thumbWrap = document.createElement('div');
-  thumbWrap.className = 'ab-thumb-wrap';
-  thumbWrap.appendChild(thumb);
-  thumbWrap.appendChild(playBtn);
-
-  /* right column: title + seek + times */
-  var col = document.createElement('div');
-  col.className = 'ab-col';
-
-  /* title */
-  var title = document.createElement('div');
-  title.className = 'ab-title';
-  title.textContent = filename.replace(/\.[^.]+$/, '') || 'Audio';
-  title.title = filename;
-
-  /* seek track */
-  var trackWrap = document.createElement('div');
-  trackWrap.className = 'ab-track-wrap';
-
-  var track = document.createElement('div');
-  track.className = 'ab-track';
-
-  var prog = document.createElement('div');
-  prog.className = 'ab-progress';
-  prog.style.width = '0%';
-
-  var dot = document.createElement('div');
-  dot.className = 'ab-dot';
-  dot.style.left = '0%';
-
-  track.appendChild(prog);
-  track.appendChild(dot);
-  trackWrap.appendChild(track);
-
-  /* times row */
-  var timesRow = document.createElement('div');
-  timesRow.className = 'ab-times';
-
-  var elapsed = document.createElement('span');
-  elapsed.textContent = '0:00';
-
-  var duration = document.createElement('span');
-  duration.textContent = '0:00';
-
-  timesRow.appendChild(elapsed);
-  timesRow.appendChild(duration);
-
-  col.appendChild(title);
-  col.appendChild(trackWrap);
-  col.appendChild(timesRow);
-
-  row.appendChild(thumbWrap);
-  row.appendChild(col);
-  bubble.appendChild(row);
-
-  /* timestamp row */
-  var timeEl = document.createElement('div');
-  timeEl.className = 'bubble-time';
-  var checkSVG2 = '<svg style="display:inline;vertical-align:-1px" width="12" height="12" viewBox="0 0 24 24" fill="rgba(255,255,255,0.6)"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
-  timeEl.innerHTML = getTime() + (isSent ? ' ' + checkSVG2 : '');
-  bubble.appendChild(timeEl);
-
-  /* audio events */
-  audio.addEventListener('loadedmetadata', function () {
-    duration.textContent = formatDuration(audio.duration);
+  audio.addEventListener('loadedmetadata', () => {
+    durEl.textContent = formatDuration(audio.duration);
   });
-
-  var playing = false;
-
-  function setPlaying(val) {
-    playing = val;
-    playBtn.innerHTML = val
-      ? '<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>'
-      : '<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M8 5v14l11-7z"/></svg>';
-  }
-
-  playBtn.addEventListener('click', function () {
-    if (playing) {
-      audio.pause();
-    } else {
-      document.querySelectorAll('audio[data-tc]').forEach(function (a) { if (a !== audio) a.pause(); });
-      audio.play();
+  audio.addEventListener('timeupdate', () => {
+    if (audio.duration) {
+      seekEl.value = (audio.currentTime / audio.duration) * 100;
     }
+    curEl.textContent = formatDuration(audio.currentTime);
+  });
+  audio.addEventListener('play', () => {
+    playIcon.classList.add('hidden');
+    pauseIcon.classList.remove('hidden');
+  });
+  audio.addEventListener('pause', () => {
+    playIcon.classList.remove('hidden');
+    pauseIcon.classList.add('hidden');
+  });
+  audio.addEventListener('ended', () => {
+    audio.currentTime = 0;
+    seekEl.value = 0;
+    curEl.textContent = '0:00';
+    playIcon.classList.remove('hidden');
+    pauseIcon.classList.add('hidden');
   });
 
-  audio.dataset.tc = '1';
-  audio.addEventListener('play',  function () { setPlaying(true); });
-  audio.addEventListener('pause', function () { setPlaying(false); });
-  audio.addEventListener('ended', function () {
-    setPlaying(false);
-    prog.style.width = '0%';
-    dot.style.left = '0%';
-    elapsed.textContent = '0:00';
+  playBtn.addEventListener('click', () => {
+    document.querySelectorAll('.webrtc-audio-el').forEach(a => {
+      if (a !== audio && !a.paused) a.pause();
+    });
+    if (audio.paused) audio.play().catch(() => {});
+    else audio.pause();
   });
 
-  audio.addEventListener('timeupdate', function () {
-    var pct = audio.duration ? (audio.currentTime / audio.duration) * 100 : 0;
-    prog.style.width = pct + '%';
-    dot.style.left = pct + '%';
-    elapsed.textContent = formatDuration(audio.currentTime);
+  seekEl.addEventListener('input', () => {
+    if (audio.duration) audio.currentTime = (seekEl.value / 100) * audio.duration;
   });
 
-  /* seek click */
-  track.addEventListener('click', function (e) {
-    var rect = track.getBoundingClientRect();
-    var pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    if (audio.duration) audio.currentTime = pct * audio.duration;
-  });
-
-  /* seek drag */
-  var dragging = false;
-  dot.addEventListener('mousedown',  function (e) { dragging = true; e.preventDefault(); });
-  dot.addEventListener('touchstart', function ()  { dragging = true; }, { passive: true });
-  var onMove = function (clientX) {
-    if (!dragging) return;
-    var rect = track.getBoundingClientRect();
-    var pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    if (audio.duration) audio.currentTime = pct * audio.duration;
-  };
-  document.addEventListener('mousemove',  function (e) { onMove(e.clientX); });
-  document.addEventListener('touchmove',  function (e) { onMove(e.touches[0].clientX); }, { passive: true });
-  document.addEventListener('mouseup',    function () { dragging = false; });
-  document.addEventListener('touchend',   function () { dragging = false; });
-
-  return bubble;
+  audio.className = 'webrtc-audio-el';
+  div.appendChild(audio);
+  return div;
 }
 
-/* ════════════════════════════════════
-   appendAudioMessage — builds the full
-   msg-row and appends to container
-   ════════════════════════════════════ */
-function appendAudioMessage(dataURL, filename, side, senderName, container, albumArtURL) {
-  var bubble = buildAudioBubble(dataURL, filename, side, albumArtURL);
+/* ── Format seconds → m:ss (used by buildAudioPlayer) ── */
+function formatDuration(secs) {
+  if (!isFinite(secs) || secs < 0) return '0:00';
+  const s = Math.floor(secs || 0);
+  const m = Math.floor(s / 60);
+  return m + ':' + String(s % 60).padStart(2, '0');
+}
+
+/* ════════════════════════════════════════════════════════════
+   appendAudioMessage — builds a message row with the
+   script.js-style audio player and appends it to container.
+   side : 'sent' | 'received'
+   blob : Blob of the audio data
+   meta : { name, artist, thumbnail }
+   ════════════════════════════════════════════════════════════ */
+function appendAudioMessage(blob, meta, side, senderName, container) {
+  var player = buildAudioPlayer(blob, meta, side === 'sent');
 
   var msgRow = document.createElement('div');
   msgRow.className = 'msg-row ' + (side === 'sent' ? 'sent' : '') + ' msg-appear';
@@ -401,17 +268,125 @@ function appendAudioMessage(dataURL, filename, side, senderName, container, albu
     avatarEl.textContent = ch;
 
     col.appendChild(nameEl);
-    col.appendChild(bubble);
+    col.appendChild(player);
     msgRow.appendChild(avatarEl);
     msgRow.appendChild(col);
   } else {
-    col.style.cssText = '-webkit-align-items:flex-end;align-items:flex-end;';
-    col.appendChild(bubble);
+    col.appendChild(player);
     msgRow.appendChild(col);
   }
 
   container.appendChild(msgRow);
   container.scrollTop = container.scrollHeight;
+}
+
+/* ════════════════════════════════════════════════════════════
+   CHUNKED TRANSFER over RTCDataChannel
+   ════════════════════════════════════════════════════════════ */
+var CHUNK_SIZE = 16 * 1024; // 16 KB
+
+function getMediaKind(type, filename) {
+  if (isImageType(type, filename)) return 'image';
+  return 'file';
+}
+
+async function sendFileChunked(channel, file) {
+  var id = Date.now() + '_' + Math.random().toString(36).slice(2);
+  var dataURL = await fileToDataURL(file);
+  var mimeType = resolveMime(file);
+  var mediaKind = getMediaKind(mimeType, file.name);
+
+  var b64 = dataURL.split(',')[1];
+
+  var chunks = [];
+  for (var i = 0; i < b64.length; i += CHUNK_SIZE) {
+    chunks.push(b64.slice(i, i + CHUNK_SIZE));
+  }
+
+  channel.send(JSON.stringify({
+    __tc_chunk_start: true,
+    id: id,
+    type: mimeType,
+    kind: mediaKind,
+    name: file.name,
+    totalChunks: chunks.length
+  }));
+
+  for (var j = 0; j < chunks.length; j++) {
+    while (channel.bufferedAmount > 1024 * 1024) {
+      await new Promise(function (r) { setTimeout(r, 20); });
+    }
+    channel.send(JSON.stringify({ __tc_chunk: true, id: id, index: j, data: chunks[j] }));
+  }
+
+  channel.send(JSON.stringify({ __tc_chunk_end: true, id: id }));
+  return { id: id, type: mimeType, kind: mediaKind, name: file.name, dataURL: dataURL };
+}
+
+function ChunkedReceiver(onComplete) {
+  this._onComplete = onComplete;
+  this._pending = {};
+}
+ChunkedReceiver.prototype.feed = function (raw) {
+  var obj;
+  try { obj = JSON.parse(raw); } catch (_) { return false; }
+  if (obj.__tc_chunk_start) {
+    this._pending[obj.id] = {
+      type: obj.type, kind: obj.kind, name: obj.name,
+      totalChunks: obj.totalChunks, chunks: new Array(obj.totalChunks)
+    };
+    return true;
+  }
+  if (obj.__tc_chunk) {
+    var p = this._pending[obj.id];
+    if (p) p.chunks[obj.index] = obj.data;
+    return true;
+  }
+  if (obj.__tc_chunk_end) {
+    var p2 = this._pending[obj.id];
+    if (!p2) return true;
+    var b64 = p2.chunks.join('');
+    var resolvedType = resolveMimeFromStrings(p2.type, p2.name);
+    var dataURL = 'data:' + resolvedType + ';base64,' + b64;
+    delete this._pending[obj.id];
+    this._onComplete({ id: obj.id, type: resolvedType, kind: p2.kind, name: p2.name, dataURL: dataURL });
+    return true;
+  }
+  return false;
+};
+
+/* ── Build a DOM node for a received media item ── */
+function buildMediaNode(type, dataURL, filename) {
+  var resolvedType = resolveMimeFromStrings(type, filename);
+
+  if (isImageType(resolvedType, filename)) {
+    var img = document.createElement('img');
+    img.src = dataURL;
+    img.className = (resolvedType === 'image/gif' || filename.toLowerCase().endsWith('.gif')) ? 'chat-gif' : 'chat-img';
+    img.alt = filename;
+    img.addEventListener('click', function () { openLightbox(dataURL); });
+    return img;
+  }
+
+  /* Generic download link for truly unknown file types */
+  var a = document.createElement('a');
+  a.href = dataURL; a.download = filename;
+  a.textContent = '📎 ' + filename;
+  a.style.color = '#64b5f6';
+  return a;
+}
+
+/* ── Parse incoming wire message (legacy inline media) ── */
+function parseIncoming(raw) {
+  try {
+    var obj = JSON.parse(raw);
+    if (obj && obj.__tc_media) {
+      var resolvedType = resolveMimeFromStrings(obj.type, obj.name);
+      var node = buildMediaNode(resolvedType, obj.data, obj.name);
+      return { isMedia: true, node: node };
+    }
+  } catch (_) {}
+  return { isMedia: false };
 }
 
 /* ── Build a message row (text / image) ── */
@@ -484,224 +459,9 @@ function buildMessageRow(content, side, senderName, isHTML) {
   return row;
 }
 
-/* ── Lightbox for images ── */
-function openLightbox(src) {
-  var lb = document.getElementById('lightbox');
-  if (!lb) {
-    lb = document.createElement('div');
-    lb.id = 'lightbox';
-    lb.innerHTML = '<img src=""/>';
-    lb.addEventListener('click', function () { lb.remove(); });
-    document.body.appendChild(lb);
-  }
-  lb.querySelector('img').src = src;
-  lb.style.display = 'flex';
-}
-
-/* ── Grow textarea with content ── */
-function autoGrow(el) {
-  el.style.height = 'auto';
-  el.style.height = el.scrollHeight + 'px';
-}
-
-/* ── Encode a File to base64 data-URL ── */
-function fileToDataURL(file) {
-  return new Promise(function (res, rej) {
-    var r = new FileReader();
-    r.onload  = function () { res(r.result); };
-    r.onerror = function () { rej(new Error('Read failed')); };
-    r.readAsDataURL(file);
-  });
-}
-
-/* ════════════════════════════════════
-   CHUNKED TRANSFER over RTCDataChannel
-   ════════════════════════════════════ */
-var CHUNK_SIZE = 16 * 1024; // 16 KB
-
-function getMediaKind(type, filename) {
-  if (isAudioType(type, filename)) return 'audio';
-  if (isImageType(type, filename)) return 'image';
-  return 'file';
-}
-
-async function sendFileChunked(channel, file) {
-  var id = Date.now() + '_' + Math.random().toString(36).slice(2);
-  var dataURL = await fileToDataURL(file);
-  /* ── Use resolveMime() so old Android WebViews that return a blank
-        or generic File.type still get the correct MIME string on the
-        wire, which lets the receiver render it as audio/image properly. ── */
-  var mimeType = resolveMime(file);
-  var mediaKind = getMediaKind(mimeType, file.name);
-
-  var b64 = dataURL.split(',')[1];
-
-  var chunks = [];
-  for (var i = 0; i < b64.length; i += CHUNK_SIZE) {
-    chunks.push(b64.slice(i, i + CHUNK_SIZE));
-  }
-
-  channel.send(JSON.stringify({
-    __tc_chunk_start: true,
-    id: id,
-    type: mimeType,
-    kind: mediaKind,
-    name: file.name,
-    totalChunks: chunks.length
-  }));
-
-  for (var j = 0; j < chunks.length; j++) {
-    while (channel.bufferedAmount > 1024 * 1024) {
-      await new Promise(function (r) { setTimeout(r, 20); });
-    }
-    channel.send(JSON.stringify({ __tc_chunk: true, id: id, index: j, data: chunks[j] }));
-  }
-
-  channel.send(JSON.stringify({ __tc_chunk_end: true, id: id }));
-  return { id: id, type: mimeType, kind: mediaKind, name: file.name, dataURL: dataURL };
-}
-
-function ChunkedReceiver(onComplete) {
-  this._onComplete = onComplete;
-  this._pending = {};
-}
-ChunkedReceiver.prototype.feed = function (raw) {
-  var obj;
-  try { obj = JSON.parse(raw); } catch (_) { return false; }
-  if (obj.__tc_chunk_start) {
-    this._pending[obj.id] = {
-      type: obj.type, kind: obj.kind, name: obj.name,
-      totalChunks: obj.totalChunks, chunks: new Array(obj.totalChunks)
-    };
-    return true;
-  }
-  if (obj.__tc_chunk) {
-    var p = this._pending[obj.id];
-    if (p) p.chunks[obj.index] = obj.data;
-    return true;
-  }
-  if (obj.__tc_chunk_end) {
-    var p2 = this._pending[obj.id];
-    if (!p2) return true;
-    var b64 = p2.chunks.join('');
-
-    /* ── Resolve MIME from the stored type + filename so that any
-          file whose type arrived as blank / octet-stream (old Android
-          sender) is still correctly identified on the receiver side. ── */
-    var resolvedType = resolveMimeFromStrings(p2.type, p2.name);
-
-    var dataURL = 'data:' + resolvedType + ';base64,' + b64;
-    delete this._pending[obj.id];
-    this._onComplete({ id: obj.id, type: resolvedType, kind: p2.kind, name: p2.name, dataURL: dataURL });
-    return true;
-  }
-  return false;
-};
-
-/* ── Detect if MIME type or filename is audio ───────────────
-   Checks the MIME string first, then falls back to the file
-   extension — matching the same dual-check used in script.js.
-   ─────────────────────────────────────────────────────────── */
-function isAudioType(type, filename) {
-  if (type && type.startsWith('audio/')) return true;
-  /* Also catch audio/mpeg and similar that may come through
-     as a generic MIME on some browsers */
-  if (type && MIME_MAP) {
-    var vals = Object.values ? Object.values(MIME_MAP) : Object.keys(MIME_MAP).map(function(k){ return MIME_MAP[k]; });
-    /* Only check audio entries — those whose value starts with audio/ */
-    for (var k in MIME_MAP) {
-      if (MIME_MAP[k] === type && MIME_MAP[k].startsWith('audio/')) return true;
-    }
-  }
-  var ext = (filename || '').split('.').pop().toLowerCase();
-  return ['mp3','wav','ogg','flac','aac','m4a','opus','weba','wma','aiff','aif'].indexOf(ext) !== -1;
-}
-
-/* ── Detect if MIME type or filename is image ── */
-function isImageType(type, filename) {
-  if (type && type.startsWith('image/')) return true;
-  var ext = (filename || '').split('.').pop().toLowerCase();
-  return ['jpg','jpeg','png','gif','webp','bmp','svg','ico','avif'].indexOf(ext) !== -1;
-}
-
 /* ── Media message builder (images / unknown files) ── */
 async function prepareMediaPayload(file) {
   var dataURL = await fileToDataURL(file);
-  /* Use resolveMime() so we always send the real MIME type,
-     not an empty string from an old Android WebView. */
   var type = resolveMime(file);
   return { type: type, name: file.name, dataURL: dataURL };
-}
-
-/* ── Build a DOM node for a received media item ─────────────
-   OLD behaviour: checked `type` string first — if the browser
-   had reported '' or 'application/octet-stream' for an audio
-   file, neither isAudioType nor isImageType would match via
-   the MIME branch, and the file fell through to the 📎 link.
-
-   NEW behaviour: resolve the true MIME via resolveMimeFromStrings()
-   before the type checks, so extension-based detection always
-   runs even when the stored type string is blank/generic.
-   ─────────────────────────────────────────────────────────── */
-function buildMediaNode(type, dataURL, filename) {
-  /* Always resolve to the best available MIME before branching */
-  var resolvedType = resolveMimeFromStrings(type, filename);
-
-  if (isAudioType(resolvedType, filename)) {
-    /* On old Android WebViews use a native <audio> element;
-       everywhere else use the custom bubble player via
-       appendAudioMessage / buildAudioBubble.
-       Here we return a lightweight native player as a safe
-       fallback for callers that only want a DOM node. */
-    if (_isOldAndroid) {
-      var audioNative = document.createElement('audio');
-      audioNative.controls = true;
-      audioNative.preload = 'metadata';
-      audioNative.src = dataURL;
-      audioNative.style.cssText = 'width:100%;border-radius:8px;outline:none;';
-      return audioNative;
-    }
-    /* Modern browsers: return a styled native player as the
-       node-only fallback (callers that want the full custom
-       bubble should call appendAudioMessage instead). */
-    var audioModern = document.createElement('audio');
-    audioModern.controls = true;
-    audioModern.preload = 'metadata';
-    audioModern.src = dataURL;
-    audioModern.dataset.tc = '1';
-    audioModern.style.cssText = 'width:100%;border-radius:8px;outline:none;';
-    return audioModern;
-  }
-
-  if (isImageType(resolvedType, filename)) {
-    var img = document.createElement('img');
-    img.src = dataURL;
-    img.className = (resolvedType === 'image/gif' || filename.toLowerCase().endsWith('.gif')) ? 'chat-gif' : 'chat-img';
-    img.alt = filename;
-    img.addEventListener('click', function () { openLightbox(dataURL); });
-    return img;
-  }
-
-  /* Generic download link for truly unknown file types */
-  var a = document.createElement('a');
-  a.href = dataURL; a.download = filename;
-  a.textContent = '📎 ' + filename;
-  a.style.color = '#64b5f6';
-  return a;
-}
-
-/* ── Parse incoming wire message (legacy inline media) ── */
-function parseIncoming(raw) {
-  try {
-    var obj = JSON.parse(raw);
-    if (obj && obj.__tc_media) {
-      /* Resolve the MIME before building the node so audio files
-         sent from old Android browsers (where File.type was '')
-         are correctly identified on the receiving end. */
-      var resolvedType = resolveMimeFromStrings(obj.type, obj.name);
-      var node = buildMediaNode(resolvedType, obj.data, obj.name);
-      return { isMedia: true, node: node };
-    }
-  } catch (_) {}
-  return { isMedia: false };
 }
