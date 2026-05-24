@@ -167,11 +167,15 @@ function formatDuration(secs) {
 }
 
 /* ════════════════════════════════════════════════════════════
-   appendAudioMessage
-   Accepts either a Blob or a dataURL string as `blobOrDataURL`.
-   meta may be a string (filename) or object { name, artist, thumbnail }.
+   appendAudioMessage — renders audio player bubble.
+   blob     : Blob of the audio data (always a real Blob now)
+   meta     : filename string OR { name, artist, thumbnail }
+   side     : 'sent' | 'received'
+   senderName : display name
+   container  : messages DOM element
+   albumArt   : optional thumbnail URL string
    ════════════════════════════════════════════════════════════ */
-function appendAudioMessage(blobOrDataURL, meta, side, senderName, container, albumArt) {
+function appendAudioMessage(blob, meta, side, senderName, container, albumArt) {
   // Normalise meta
   if (typeof meta === 'string') {
     meta = { name: meta, artist: '', thumbnail: albumArt || null };
@@ -180,18 +184,13 @@ function appendAudioMessage(blobOrDataURL, meta, side, senderName, container, al
     if (albumArt) meta.thumbnail = albumArt;
   }
 
+  var url = URL.createObjectURL(blob);
+
   // Build audio element
   var audio = document.createElement('audio');
   audio.className = 'tc-audio-engine';
   audio.preload = 'metadata';
-
-  if (typeof blobOrDataURL === 'string') {
-    // dataURL path (received via chunked transfer)
-    audio.src = blobOrDataURL;
-  } else {
-    // Blob path (local file)
-    audio.src = URL.createObjectURL(blobOrDataURL);
-  }
+  audio.src = url;
 
   // Build bubble
   var bubble = document.createElement('div');
@@ -356,35 +355,39 @@ function getMediaKind(type, filename) {
 
 async function sendFileChunked(channel, file) {
   var id = Date.now() + '_' + Math.random().toString(36).slice(2);
-  var dataURL = await fileToDataURL(file);
   var mimeType = resolveMime(file);
   var mediaKind = getMediaKind(mimeType, file.name);
+  var buf = await file.arrayBuffer();
+  var totalChunks = Math.ceil(buf.byteLength / CHUNK_SIZE) || 1;
 
-  var b64 = dataURL.split(',')[1];
-
-  var chunks = [];
-  for (var i = 0; i < b64.length; i += CHUNK_SIZE) {
-    chunks.push(b64.slice(i, i + CHUNK_SIZE));
-  }
-
+  // Send metadata header as JSON
   channel.send(JSON.stringify({
     __tc_chunk_start: true,
     id: id,
     type: mimeType,
     kind: mediaKind,
     name: file.name,
-    totalChunks: chunks.length
+    size: buf.byteLength,
+    totalChunks: totalChunks
   }));
 
-  for (var j = 0; j < chunks.length; j++) {
-    while (channel.bufferedAmount > 1024 * 1024) {
+  // Send each chunk as a binary frame: 36-byte id prefix + payload
+  for (var j = 0; j < totalChunks; j++) {
+    while (channel.bufferedAmount > 4 * 1024 * 1024) {
       await new Promise(function (r) { setTimeout(r, 20); });
     }
-    channel.send(JSON.stringify({ __tc_chunk: true, id: id, index: j, data: chunks[j] }));
+    var slice = buf.slice(j * CHUNK_SIZE, (j + 1) * CHUNK_SIZE);
+    var header = new ArrayBuffer(36);
+    var idBytes = new TextEncoder().encode(id.padEnd(36, '\0'));
+    new Uint8Array(header).set(idBytes.slice(0, 36));
+    var pkt = new Uint8Array(36 + slice.byteLength);
+    pkt.set(new Uint8Array(header), 0);
+    pkt.set(new Uint8Array(slice), 36);
+    channel.send(pkt.buffer);
   }
 
   channel.send(JSON.stringify({ __tc_chunk_end: true, id: id }));
-  return { id: id, type: mimeType, kind: mediaKind, name: file.name, dataURL: dataURL };
+  return { id: id, type: mimeType, kind: mediaKind, name: file.name };
 }
 
 function ChunkedReceiver(onComplete) {
@@ -392,48 +395,59 @@ function ChunkedReceiver(onComplete) {
   this._pending = {};
 }
 ChunkedReceiver.prototype.feed = function (raw) {
+  // Binary frame: first 36 bytes = id, rest = payload
+  if (raw instanceof ArrayBuffer) {
+    if (raw.byteLength < 36) return true;
+    var id = new TextDecoder().decode(new Uint8Array(raw, 0, 36)).replace(/\0/g, '');
+    var p = this._pending[id];
+    if (p) {
+      p.chunks.push(raw.slice(36));
+      p.received += raw.byteLength - 36;
+    }
+    return true;
+  }
+
+  // JSON control frames
   var obj;
   try { obj = JSON.parse(raw); } catch (_) { return false; }
+
   if (obj.__tc_chunk_start) {
     this._pending[obj.id] = {
       type: obj.type, kind: obj.kind, name: obj.name,
-      totalChunks: obj.totalChunks, chunks: new Array(obj.totalChunks)
+      size: obj.size, chunks: [], received: 0
     };
     return true;
   }
-  if (obj.__tc_chunk) {
-    var p = this._pending[obj.id];
-    if (p) p.chunks[obj.index] = obj.data;
-    return true;
-  }
+
   if (obj.__tc_chunk_end) {
     var p2 = this._pending[obj.id];
     if (!p2) return true;
-    var b64 = p2.chunks.join('');
     var resolvedType = resolveMimeFromStrings(p2.type, p2.name);
-    var dataURL = 'data:' + resolvedType + ';base64,' + b64;
+    var blob = new Blob(p2.chunks, { type: resolvedType });
     delete this._pending[obj.id];
-    this._onComplete({ id: obj.id, type: resolvedType, kind: p2.kind, name: p2.name, dataURL: dataURL });
+    this._onComplete({ id: obj.id, type: resolvedType, kind: p2.kind, name: p2.name, blob: blob });
     return true;
   }
+
   return false;
 };
 
-/* ── Build a DOM node for a received media item ── */
-function buildMediaNode(type, dataURL, filename) {
-  var resolvedType = resolveMimeFromStrings(type, filename);
+/* ── Build a DOM node for a received image/file blob ── */
+function buildMediaNode(blob, filename) {
+  var resolvedType = resolveMimeFromStrings(blob.type, filename);
+  var url = URL.createObjectURL(blob);
 
   if (isImageType(resolvedType, filename)) {
     var img = document.createElement('img');
-    img.src = dataURL;
+    img.src = url;
     img.className = (resolvedType === 'image/gif' || filename.toLowerCase().endsWith('.gif')) ? 'chat-gif' : 'chat-img';
     img.alt = filename;
-    img.addEventListener('click', function () { openLightbox(dataURL); });
+    img.addEventListener('click', function () { openLightbox(url); });
     return img;
   }
 
   var a = document.createElement('a');
-  a.href = dataURL; a.download = filename;
+  a.href = url; a.download = filename;
   a.textContent = '📎 ' + filename;
   a.style.color = '#64b5f6';
   return a;
@@ -445,7 +459,10 @@ function parseIncoming(raw) {
     var obj = JSON.parse(raw);
     if (obj && obj.__tc_media) {
       var resolvedType = resolveMimeFromStrings(obj.type, obj.name);
-      var node = buildMediaNode(resolvedType, obj.data, obj.name);
+      var b64 = obj.data.split(',')[1] || obj.data;
+      var bytes = Uint8Array.from(atob(b64), function(c) { return c.charCodeAt(0); });
+      var blob = new Blob([bytes], { type: resolvedType });
+      var node = buildMediaNode(blob, obj.name);
       return { isMedia: true, node: node };
     }
   } catch (_) {}
@@ -522,10 +539,14 @@ function buildMessageRow(content, side, senderName, isHTML) {
   return row;
 }
 
-/* ── Media message builder ── */
+/* ── Media message builder — returns Blob for audio, dataURL for images ── */
 async function prepareMediaPayload(file) {
-  var dataURL = await fileToDataURL(file);
   var type = resolveMime(file);
   var kind = getMediaKind(type, file.name);
+  if (kind === 'audio') {
+    var blob = new Blob([await file.arrayBuffer()], { type: type });
+    return { type: type, kind: kind, name: file.name, blob: blob };
+  }
+  var dataURL = await fileToDataURL(file);
   return { type: type, kind: kind, name: file.name, dataURL: dataURL };
 }
