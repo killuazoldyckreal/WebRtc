@@ -94,11 +94,38 @@ function resolveMimeFromStrings(type, filename) {
   return MIME_MAP[ext] || t || 'application/octet-stream';
 }
 
+/* ── Detect if MIME type or filename is audio ── */
+function isAudioType(type, filename) {
+  if (type && type.startsWith('audio/')) return true;
+  var ext = (filename || '').split('.').pop().toLowerCase();
+  return ['mp3','wav','ogg','aac','m4a','flac','opus','weba','wma','aiff','aif'].indexOf(ext) !== -1;
+}
+
 /* ── Detect if MIME type or filename is image ── */
 function isImageType(type, filename) {
   if (type && type.startsWith('image/')) return true;
   var ext = (filename || '').split('.').pop().toLowerCase();
   return ['jpg','jpeg','png','gif','webp','bmp','svg','ico','avif'].indexOf(ext) !== -1;
+}
+
+/* ── Extract album art from audio file using jsmediatags (if available) ── */
+function extractAlbumArt(file) {
+  return new Promise(function(resolve) {
+    // Resolve immediately with null if library not loaded
+    if (typeof jsmediatags === 'undefined') { resolve(null); return; }
+    jsmediatags.read(file, {
+      onSuccess: function(tag) {
+        try {
+          var pic = tag.tags.picture;
+          if (!pic) { resolve(null); return; }
+          var bytes = new Uint8Array(pic.data);
+          var blob = new Blob([bytes], { type: pic.format });
+          resolve(URL.createObjectURL(blob));
+        } catch(e) { resolve(null); }
+      },
+      onError: function() { resolve(null); }
+    });
+  });
 }
 
 /* ── Grow textarea with content ── */
@@ -131,106 +158,7 @@ function openLightbox(src) {
   lb.style.display = 'flex';
 }
 
-/* ═══════════════════════════════════════════════════════════
-   AUDIO — buildAudioPlayer (from script.js)
-   Builds the custom audio player DOM node from a Blob + meta.
-   meta = { name, artist, thumbnail }
-   isSent = boolean (kept for API parity)
-   ═══════════════════════════════════════════════════════════ */
-function buildAudioPlayer(blob, meta, isSent) {
-  const url = URL.createObjectURL(blob);
-  const div = document.createElement('div');
-  div.className = 'audio-player';
-
-  const thumbHtml = meta.thumbnail
-    ? `<div class="audio-thumb"><img src="${meta.thumbnail}" alt="thumb"></div>`
-    : `<div class="audio-thumb-default">
-         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" color="#fff">
-           <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="21" cy="16" r="3"/>
-         </svg>
-       </div>`;
-
-  div.innerHTML = `
-    <div class="audio-top">
-      ${thumbHtml}
-      <div class="audio-info">
-        <div class="audio-title">${meta.name || 'Audio'}</div>
-        <div class="audio-artist">${meta.artist || ''}</div>
-      </div>
-    </div>
-    <div class="audio-controls">
-      <button class="audio-play-btn" aria-label="Play/Pause" type="button">
-        <svg class="play-icon" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
-          <path d="M11.596 8.697l-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.697l6.363 3.692a.802.802 0 0 1 0 1.394z"/>
-        </svg>
-        <svg class="pause-icon hidden" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
-          <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/>
-        </svg>
-      </button>
-      <div class="audio-seek-area">
-        <input type="range" class="audio-seek" min="0" max="100" value="0" step="0.1">
-        <div class="audio-time-row">
-          <span class="audio-current">0:00</span>
-          <span class="audio-duration">-:--</span>
-        </div>
-      </div>
-    </div>
-  `;
-
-  const audio = document.createElement('audio');
-  audio.src = url;
-  audio.preload = 'metadata';
-
-  const playBtn = div.querySelector('.audio-play-btn');
-  const playIcon = div.querySelector('.play-icon');
-  const pauseIcon = div.querySelector('.pause-icon');
-  const seekEl = div.querySelector('.audio-seek');
-  const curEl = div.querySelector('.audio-current');
-  const durEl = div.querySelector('.audio-duration');
-
-  audio.addEventListener('loadedmetadata', () => {
-    durEl.textContent = formatDuration(audio.duration);
-  });
-  audio.addEventListener('timeupdate', () => {
-    if (audio.duration) {
-      seekEl.value = (audio.currentTime / audio.duration) * 100;
-    }
-    curEl.textContent = formatDuration(audio.currentTime);
-  });
-  audio.addEventListener('play', () => {
-    playIcon.classList.add('hidden');
-    pauseIcon.classList.remove('hidden');
-  });
-  audio.addEventListener('pause', () => {
-    playIcon.classList.remove('hidden');
-    pauseIcon.classList.add('hidden');
-  });
-  audio.addEventListener('ended', () => {
-    audio.currentTime = 0;
-    seekEl.value = 0;
-    curEl.textContent = '0:00';
-    playIcon.classList.remove('hidden');
-    pauseIcon.classList.add('hidden');
-  });
-
-  playBtn.addEventListener('click', () => {
-    document.querySelectorAll('.webrtc-audio-el').forEach(a => {
-      if (a !== audio && !a.paused) a.pause();
-    });
-    if (audio.paused) audio.play().catch(() => {});
-    else audio.pause();
-  });
-
-  seekEl.addEventListener('input', () => {
-    if (audio.duration) audio.currentTime = (seekEl.value / 100) * audio.duration;
-  });
-
-  audio.className = 'webrtc-audio-el';
-  div.appendChild(audio);
-  return div;
-}
-
-/* ── Format seconds → m:ss (used by buildAudioPlayer) ── */
+/* ── Format seconds → m:ss ── */
 function formatDuration(secs) {
   if (!isFinite(secs) || secs < 0) return '0:00';
   const s = Math.floor(secs || 0);
@@ -239,21 +167,154 @@ function formatDuration(secs) {
 }
 
 /* ════════════════════════════════════════════════════════════
-   appendAudioMessage — builds a message row with the
-   script.js-style audio player and appends it to container.
-   side : 'sent' | 'received'
-   blob : Blob of the audio data
-   meta : { name, artist, thumbnail }
+   appendAudioMessage
+   Accepts either a Blob or a dataURL string as `blobOrDataURL`.
+   meta may be a string (filename) or object { name, artist, thumbnail }.
    ════════════════════════════════════════════════════════════ */
-function appendAudioMessage(blob, meta, side, senderName, container) {
-  var player = buildAudioPlayer(blob, meta, side === 'sent');
+function appendAudioMessage(blobOrDataURL, meta, side, senderName, container, albumArt) {
+  // Normalise meta
+  if (typeof meta === 'string') {
+    meta = { name: meta, artist: '', thumbnail: albumArt || null };
+  } else {
+    meta = meta || {};
+    if (albumArt) meta.thumbnail = albumArt;
+  }
 
+  // Build audio element
+  var audio = document.createElement('audio');
+  audio.className = 'tc-audio-engine';
+  audio.preload = 'metadata';
+
+  if (typeof blobOrDataURL === 'string') {
+    // dataURL path (received via chunked transfer)
+    audio.src = blobOrDataURL;
+  } else {
+    // Blob path (local file)
+    audio.src = URL.createObjectURL(blobOrDataURL);
+  }
+
+  // Build bubble
+  var bubble = document.createElement('div');
+  var isSent = side === 'sent';
+  bubble.className = 'bubble audio-bubble ' + (isSent ? 'sent' : 'received');
+
+  // Thumbnail HTML
+  var thumbInner = meta.thumbnail
+    ? '<img src="' + meta.thumbnail + '" alt="art">'
+    : '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="21" cy="16" r="3"/></svg>';
+
+  bubble.innerHTML =
+    '<div class="ab-row">' +
+      '<div class="ab-thumb-wrap">' +
+        '<div class="ab-thumb">' + thumbInner + '</div>' +
+        '<button class="ab-play" aria-label="Play/Pause">' +
+          '<svg class="ab-play-icon" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M11.596 8.697l-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.697l6.363 3.692a.802.802 0 0 1 0 1.394z"/></svg>' +
+          '<svg class="ab-pause-icon" style="display:none" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/></svg>' +
+        '</button>' +
+      '</div>' +
+      '<div class="ab-col">' +
+        '<div class="ab-title">' + sanitizeHTML(meta.name || 'Audio') + '</div>' +
+        '<div class="ab-track-wrap">' +
+          '<div class="ab-track">' +
+            '<div class="ab-progress"></div>' +
+            '<div class="ab-dot"></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="ab-times"><span class="ab-cur">0:00</span><span class="ab-dur">-:--</span></div>' +
+      '</div>' +
+    '</div>';
+
+  bubble.appendChild(audio);
+
+  // Wire controls
+  var playBtn   = bubble.querySelector('.ab-play');
+  var playIcon  = bubble.querySelector('.ab-play-icon');
+  var pauseIcon = bubble.querySelector('.ab-pause-icon');
+  var track     = bubble.querySelector('.ab-track');
+  var progress  = bubble.querySelector('.ab-progress');
+  var dot       = bubble.querySelector('.ab-dot');
+  var curEl     = bubble.querySelector('.ab-cur');
+  var durEl     = bubble.querySelector('.ab-dur');
+
+  audio.addEventListener('loadedmetadata', function() {
+    durEl.textContent = formatDuration(audio.duration);
+  });
+  audio.addEventListener('timeupdate', function() {
+    if (!audio.duration) return;
+    var pct = (audio.currentTime / audio.duration) * 100;
+    progress.style.width = pct + '%';
+    dot.style.left = pct + '%';
+    curEl.textContent = formatDuration(audio.currentTime);
+  });
+  audio.addEventListener('play', function() {
+    playIcon.style.display = 'none';
+    pauseIcon.style.display = '';
+  });
+  audio.addEventListener('pause', function() {
+    playIcon.style.display = '';
+    pauseIcon.style.display = 'none';
+  });
+  audio.addEventListener('ended', function() {
+    audio.currentTime = 0;
+    progress.style.width = '0%';
+    dot.style.left = '0%';
+    curEl.textContent = '0:00';
+    playIcon.style.display = '';
+    pauseIcon.style.display = 'none';
+  });
+
+  playBtn.addEventListener('click', function() {
+    document.querySelectorAll('audio.tc-audio-engine').forEach(function(a) {
+      if (a !== audio && !a.paused) a.pause();
+    });
+    if (audio.paused) audio.play().catch(function(){});
+    else audio.pause();
+  });
+
+  // Seek by clicking the track
+  track.addEventListener('click', function(e) {
+    if (!audio.duration) return;
+    var rect = track.getBoundingClientRect();
+    var pct  = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    audio.currentTime = pct * audio.duration;
+  });
+
+  // Drag the dot
+  (function() {
+    var dragging = false;
+    dot.addEventListener('mousedown', function(e) { dragging = true; e.preventDefault(); });
+    dot.addEventListener('touchstart', function(e) { dragging = true; }, { passive: true });
+    document.addEventListener('mousemove', function(e) {
+      if (!dragging || !audio.duration) return;
+      var rect = track.getBoundingClientRect();
+      var pct  = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      audio.currentTime = pct * audio.duration;
+    });
+    document.addEventListener('touchmove', function(e) {
+      if (!dragging || !audio.duration) return;
+      var rect = track.getBoundingClientRect();
+      var pct  = Math.max(0, Math.min(1, (e.touches[0].clientX - rect.left) / rect.width));
+      audio.currentTime = pct * audio.duration;
+    }, { passive: true });
+    document.addEventListener('mouseup',  function() { dragging = false; });
+    document.addEventListener('touchend', function() { dragging = false; });
+  })();
+
+  // Build message row
   var msgRow = document.createElement('div');
-  msgRow.className = 'msg-row ' + (side === 'sent' ? 'sent' : '') + ' msg-appear';
+  msgRow.className = 'msg-row ' + (isSent ? 'sent' : '') + ' msg-appear';
 
   var col = document.createElement('div');
 
-  if (side === 'received') {
+  // Timestamp row below bubble
+  var timeEl = document.createElement('div');
+  timeEl.style.cssText = 'font-size:10px;color:rgba(170,197,217,0.6);margin-top:2px;' +
+    (isSent ? 'text-align:right;padding-right:4px;' : 'padding-left:4px;');
+  timeEl.innerHTML = getTime() + (isSent
+    ? ' <svg style="display:inline;vertical-align:-1px" width="12" height="12" viewBox="0 0 24 24" fill="rgba(255,255,255,0.5)"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>'
+    : '');
+
+  if (!isSent) {
     var color = getAvatarColor(senderName);
     var ch = (senderName || '?')[0].toUpperCase();
 
@@ -268,11 +329,13 @@ function appendAudioMessage(blob, meta, side, senderName, container) {
     avatarEl.textContent = ch;
 
     col.appendChild(nameEl);
-    col.appendChild(player);
+    col.appendChild(bubble);
+    col.appendChild(timeEl);
     msgRow.appendChild(avatarEl);
     msgRow.appendChild(col);
   } else {
-    col.appendChild(player);
+    col.appendChild(bubble);
+    col.appendChild(timeEl);
     msgRow.appendChild(col);
   }
 
@@ -286,6 +349,7 @@ function appendAudioMessage(blob, meta, side, senderName, container) {
 var CHUNK_SIZE = 16 * 1024; // 16 KB
 
 function getMediaKind(type, filename) {
+  if (isAudioType(type, filename)) return 'audio';
   if (isImageType(type, filename)) return 'image';
   return 'file';
 }
@@ -368,7 +432,6 @@ function buildMediaNode(type, dataURL, filename) {
     return img;
   }
 
-  /* Generic download link for truly unknown file types */
   var a = document.createElement('a');
   a.href = dataURL; a.download = filename;
   a.textContent = '📎 ' + filename;
@@ -459,9 +522,10 @@ function buildMessageRow(content, side, senderName, isHTML) {
   return row;
 }
 
-/* ── Media message builder (images / unknown files) ── */
+/* ── Media message builder ── */
 async function prepareMediaPayload(file) {
   var dataURL = await fileToDataURL(file);
   var type = resolveMime(file);
-  return { type: type, name: file.name, dataURL: dataURL };
+  var kind = getMediaKind(type, file.name);
+  return { type: type, kind: kind, name: file.name, dataURL: dataURL };
 }
