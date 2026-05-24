@@ -135,20 +135,20 @@
   let peerDisplayName = 'You', hostName = 'Host';
   let chunkedReceiver;
 
-  const setupScreen    = document.getElementById('setup-screen');
-  const chatScreen     = document.getElementById('chat-screen');
-  const respModal      = document.getElementById('resp-modal');
-  const respCodeDisplay= document.getElementById('resp-code-display');
-  const topbarName     = document.getElementById('topbar-name');
-  const topbarStatusEl = document.getElementById('topbar-status');
-  const hostAvatar     = document.getElementById('host-avatar');
-  const messagesEl     = document.getElementById('messages');
-  const messageInput   = document.getElementById('message');
-  const respCopyBtn    = document.getElementById('resp-copy-btn');
-  const copyRespBtn    = document.getElementById('copy-resp-btn');
-  const emojiContainer = document.getElementById('emoji-picker-container');
-  const attachMenu     = document.getElementById('attach-menu');
-  const clipBtn        = document.getElementById('clip-btn');
+  const setupScreen     = document.getElementById('setup-screen');
+  const chatScreen      = document.getElementById('chat-screen');
+  const respModal       = document.getElementById('resp-modal');
+  const respCodeDisplay = document.getElementById('resp-code-display');
+  const topbarName      = document.getElementById('topbar-name');
+  const topbarStatusEl  = document.getElementById('topbar-status');
+  const hostAvatar      = document.getElementById('host-avatar');
+  const messagesEl      = document.getElementById('messages');
+  const messageInput    = document.getElementById('message');
+  const respCopyBtn     = document.getElementById('resp-copy-btn');
+  const copyRespBtn     = document.getElementById('copy-resp-btn');
+  const emojiContainer  = document.getElementById('emoji-picker-container');
+  const attachMenu      = document.getElementById('attach-menu');
+  const clipBtn         = document.getElementById('clip-btn');
 
   function appendMessage(content, side, name, isHTML = false) {
     const row = buildMessageRow(content, side, name, isHTML);
@@ -185,7 +185,10 @@
     if (!attachMenu.classList.contains('hidden'))
       gsap.from(attachMenu, { y: 10, opacity: 0, duration: 0.2, ease: 'power2.out' });
   });
-  document.addEventListener('click', () => { attachMenu.classList.add('hidden'); emojiContainer.classList.add('hidden'); });
+  document.addEventListener('click', () => {
+    attachMenu.classList.add('hidden');
+    emojiContainer.classList.add('hidden');
+  });
 
   document.getElementById('menu-emoji-btn').addEventListener('click', e => {
     e.stopPropagation(); attachMenu.classList.add('hidden');
@@ -211,22 +214,24 @@
     } else { emojiContainer.classList.add('hidden'); }
   });
 
+  /* ── Image attach: kind is always 'image' ── */
   document.getElementById('menu-img-btn').addEventListener('click', e => {
     e.stopPropagation(); attachMenu.classList.add('hidden');
     document.getElementById('img-input').click();
   });
   document.getElementById('img-input').addEventListener('change', async e => {
     const files = Array.from(e.target.files); if (!files.length) return; e.target.value = '';
-    for (const file of files) await sendMediaFile(file);
+    for (const file of files) await sendMediaFile(file, 'image');
   });
 
+  /* ── Audio attach: kind is always 'audio' ── */
   document.getElementById('menu-audio-btn').addEventListener('click', e => {
     e.stopPropagation(); attachMenu.classList.add('hidden');
     document.getElementById('audio-input').click();
   });
   document.getElementById('audio-input').addEventListener('change', async e => {
     const files = Array.from(e.target.files); if (!files.length) return; e.target.value = '';
-    for (const file of files) await sendMediaFile(file);
+    for (const file of files) await sendMediaFile(file, 'audio');
   });
 
   /* ── Input ── */
@@ -235,32 +240,23 @@
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });
 
-  /* ════════════════════════════════════════════════════
-     sendMediaFile
-     Resolves kind ONCE via prepareMediaPayload, then:
-     - Renders local preview using that explicit kind
-     - Sends wire transfer with that same kind embedded
-     No re-detection at any point after this.
-     ════════════════════════════════════════════════════ */
-  async function sendMediaFile(file) {
+  /* ── Send media
+     kind is determined at attach time ('image' or 'audio'), not guessed from MIME.
+     sendFileChunked stamps it into the chunk metadata so the receiver trusts it. ── */
+  async function sendMediaFile(file, kind) {
     if (!receiveChannel || receiveChannel.readyState !== 'open') { alert('Not connected yet.'); return; }
 
-    // kind and type resolved once, here, at send time
-    const payload = await prepareMediaPayload(file);
-    const { type, kind, name, blob } = payload;
-
-    // Branch on explicit kind — no fallback detection
     if (kind === 'audio') {
+      const blob = new Blob([await file.arrayBuffer()], { type: file.type });
       const albumArt = await extractAlbumArt(file);
-      appendAudioMessage(blob, name, 'sent', peerDisplayName, messagesEl, albumArt);
-    } else if (kind === 'image') {
-      appendMessage(buildImageNode(blob, name, type), 'sent', peerDisplayName);
+      appendAudioMessage(blob, file.name, 'sent', peerDisplayName, messagesEl, albumArt);
     } else {
-      appendMessage(buildFileNode(blob, name), 'sent', peerDisplayName);
+      // kind === 'image'
+      const blob = new Blob([await file.arrayBuffer()], { type: file.type });
+      appendMessage(buildImageNode(blob, file.name), 'sent', peerDisplayName);
     }
 
-    // Wire transfer carries the same kind + type in its header
-    await sendFileChunked(receiveChannel, file);
+    await sendFileChunked(receiveChannel, file, kind);
   }
 
   /* ── Send text ── */
@@ -291,22 +287,13 @@
       receiveChannel = event.channel;
       receiveChannel.binaryType = 'arraybuffer';
 
-      /* ════════════════════════════════════════════════════
-         ChunkedReceiver onComplete
-         kind and type arrive verbatim from the sender.
-         Branch on kind directly — no isAudioType(), no
-         MIME re-detection, no fallback ambiguity.
-         ════════════════════════════════════════════════════ */
+      /* Receiver: kind comes straight from chunk metadata — no re-detection */
       chunkedReceiver = new ChunkedReceiver(({ type, kind, name, blob }) => {
         if (kind === 'audio') {
-          // kind === 'audio': render audio player; blob.type is already correct
           appendAudioMessage(blob, name, 'received', hostName, messagesEl, null);
-        } else if (kind === 'image') {
-          // kind === 'image': render image; type is the sender's resolved MIME
-          appendMessage(buildImageNode(blob, name, type), 'received', hostName);
         } else {
-          // kind === 'file': render download link
-          appendMessage(buildFileNode(blob, name), 'received', hostName);
+          // kind === 'image' (or unknown legacy 'file')
+          appendMessage(buildImageNode(blob, name), 'received', hostName);
         }
       });
 
@@ -330,6 +317,8 @@
           setStatus(topbarStatusEl, 'connected', hostName);
           return;
         }
+        const parsed = parseIncoming(raw);
+        if (parsed.isMedia) { appendMessage(parsed.node, 'received', hostName); return; }
         appendMessage(sanitizeHTML(raw).replace(/&lt;br&gt;/g, '<br>'), 'received', hostName, true);
       };
 
