@@ -130,7 +130,7 @@
         Messaging
       </h1>
       <p style="color: var(--text-secondary); font-size: 1rem; margin-bottom: 32px; line-height: 1.7;">
-        Send text, images and audio directly browser-to-browser. No accounts, no servers storing your data. 100 KB chunked transfer over WebRTC DataChannel.
+        Send messages directly browser-to-browser. No accounts, no servers storing your data. Faster real-time communication.
       </p>
       <div style="display: flex; gap: 12px; flex-wrap: wrap;">
         <a href="host.html" class="btn btn-primary btn-lg">
@@ -144,9 +144,9 @@
       </div>
       <!-- Stats row -->
       <div style="display: flex; gap: 32px; margin-top: 40px; padding-top: 32px; border-top: 1px solid var(--border-primary);">
-        <div><div class="stat-num">100<span style="font-size:1.2rem">KB</span></div><div class="stat-label">Chunk size</div></div>
+        <div><div class="stat-num">HD</div><div class="stat-label">Streaming</div></div>
         <div><div class="stat-num">E2E</div><div class="stat-label">Encrypted</div></div>
-        <div><div class="stat-num">0</div><div class="stat-label">Servers storing data</div></div>
+        <div><div class="stat-num">Low</div><div class="stat-label">Latency</div></div>
       </div>
     </div>
     <!-- Chat Preview -->
@@ -210,36 +210,29 @@
         <div class="feature-icon-wrap" style="background: rgba(63,185,80,0.15); margin-bottom: 16px;">
           <svg width="22" height="22" fill="none" stroke="#3fb950" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         </div>
-        <h3 style="font-weight: 700; margin-bottom: 6px;">100 KB Chunked Transfer</h3>
-        <p style="color: var(--text-secondary); font-size: 0.875rem; line-height: 1.6;">Files split into 100 KB chunks over RTCDataChannel. Reliable delivery with progress tracking.</p>
+        <h3 style="font-weight: 700; margin-bottom: 6px;">File Sharing</h3>
+        <p style="color: var(--text-secondary); font-size: 0.875rem; line-height: 1.6;">P2P file transfer without uploading to a server. Reliable and faster local transfers.</p>
       </div>
       <div class="card card-hover">
         <div class="feature-icon-wrap" style="background: rgba(188,140,255,0.15); margin-bottom: 16px;">
           <svg width="22" height="22" fill="none" stroke="#bc8cff" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
         </div>
-        <h3 style="font-weight: 700; margin-bottom: 6px;">Image Collage</h3>
-        <p style="color: var(--text-secondary); font-size: 0.875rem; line-height: 1.6;">Multiple images grouped into a beautiful collage layout — just like Telegram.</p>
+        <h3 style="font-weight: 700; margin-bottom: 6px;">Multimedia Support</h3>
+        <p style="color: var(--text-secondary); font-size: 0.875rem; line-height: 1.6;">Built-in browser support for all media types.</p>
       </div>
       <div class="card card-hover">
         <div class="feature-icon-wrap" style="background: rgba(210,153,34,0.15); margin-bottom: 16px;">
           <svg width="22" height="22" fill="none" stroke="#d29922" stroke-width="2" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="21" cy="16" r="3"/></svg>
         </div>
-        <h3 style="font-weight: 700; margin-bottom: 6px;">Rich Audio Player</h3>
-        <p style="color: var(--text-secondary); font-size: 0.875rem; line-height: 1.6;">Play/pause, seek, metadata display (title, thumbnail, duration). Works on all browsers — uses native &lt;audio&gt; element.</p>
+        <h3 style="font-weight: 700; margin-bottom: 6px;">Rich Media Player</h3>
+        <p style="color: var(--text-secondary); font-size: 0.875rem; line-height: 1.6;">Play/pause, seek videos and audio. Works on all browsers.</p>
       </div>
       <div class="card card-hover">
         <div class="feature-icon-wrap" style="background: rgba(248,81,73,0.15); margin-bottom: 16px;">
           <svg width="22" height="22" fill="none" stroke="#f85149" stroke-width="2" viewBox="0 0 24 24"><path d="M15.05 5A5 5 0 0 1 19 8.95M15.05 1A9 9 0 0 1 23 8.94m-1 7.98v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 3.07 9a19.79 19.79 0 0 1-3-8.63A2 2 0 0 1 2 .18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L6.91 7.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21 15v3z"/></svg>
         </div>
-        <h3 style="font-weight: 700; margin-bottom: 6px;">Multi-Attachment</h3>
-        <p style="color: var(--text-secondary); font-size: 0.875rem; line-height: 1.6;">Attach multiple images and audio files in a single message. Remove individual files before sending.</p>
-      </div>
-      <div class="card card-hover">
-        <div class="feature-icon-wrap" style="background: rgba(88,166,255,0.12); margin-bottom: 16px;">
-          <svg width="22" height="22" fill="none" stroke="#58a6ff" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-        </div>
-        <h3 style="font-weight: 700; margin-bottom: 6px;">Real-time Transfer Progress</h3>
-        <p style="color: var(--text-secondary); font-size: 0.875rem; line-height: 1.6;">Live progress bars while sending / receiving files over the data channel.</p>
+        <h3 style="font-weight: 700; margin-bottom: 6px;">Audio & Video Calling</h3>
+        <p style="color: var(--text-secondary); font-size: 0.875rem; line-height: 1.6;">Built-in support for live media streaming like voice calls & video calls.</p>
       </div>
     </div>
   </div>
