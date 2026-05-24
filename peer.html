@@ -27,7 +27,7 @@
   <div class="card rounded-2xl p-7 w-full max-w-sm flex flex-col gap-5 relative z-10">
     <div class="flex items-center gap-3 mb-1">
       <div class="w-10 h-10 rounded-full bg-gradient-to-br from-green-600 to-green-400 flex items-center justify-center">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.3[...]
       </div>
       <div>
         <h1 class="text-xl font-extrabold text-white">Join Chat</h1>
@@ -48,7 +48,7 @@
       <textarea id="hostCodeInput" class="tg-textarea" placeholder="Paste the host's code here…" rows="4"></textarea>
     </div>
     <button onclick="joinAsPeer()" class="btn-primary py-3 rounded-xl text-sm w-full flex items-center justify-center gap-2">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.11 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.11 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4[...]
       Join &amp; Generate Response
     </button>
     <a href="index.html" class="text-center text-xs text-[#4e7a96] hover:text-[#6d9ab5] transition-colors">← Back to home</a>
@@ -58,7 +58,7 @@
 <!-- ══════════════ CHAT ══════════════ -->
 <div id="chat-screen">
   <div id="topbar">
-    <button onclick="window.location.href='index.html'" class="w-8 h-8 rounded-full bg-[#263545] flex items-center justify-center hover:bg-[#2e3f52] transition-colors border-0 cursor-pointer flex-shrink-0">
+    <button onclick="window.location.href='index.html'" class="w-8 h-8 rounded-full bg-[#263545] flex items-center justify-center hover:bg-[#2e3f52] transition-colors border-0 cursor-pointer flex-[...]
       <svg width="16" height="16" viewBox="0 0 24 24" fill="#aac5d9"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
     </button>
     <div id="host-avatar" class="avatar" style="background:linear-gradient(135deg,#2b6cb0,#2196f3)">H</div>
@@ -68,8 +68,8 @@
         <div class="waiting-dot"></div><span>Waiting</span>
       </div>
     </div>
-    <button id="copy-resp-btn" onclick="openRespModal()" class="w-9 h-9 rounded-full bg-[#263545] flex items-center justify-center hover:bg-[#2e3f52] transition-colors border-0 cursor-pointer flex-shrink-0" title="Show response code">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="#aac5d9"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+    <button id="copy-resp-btn" onclick="openRespModal()" class="w-9 h-9 rounded-full bg-[#263545] flex items-center justify-center hover:bg-[#2e3f52] transition-colors border-0 cursor-pointer flex[...]
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="#aac5d9"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8[...]
     </button>
   </div>
 
@@ -80,11 +80,11 @@
   <!-- Attachment popup menu -->
   <div id="attach-menu" class="hidden">
     <button class="attach-menu-item" id="menu-emoji-btn">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="#f9ca24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="#f9ca24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8[...]
       Emoji
     </button>
     <button class="attach-menu-item" id="menu-img-btn">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="#4fc3f7"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="#4fc3f7"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.[...]
       Image / GIF
     </button>
     <button class="attach-menu-item" id="menu-audio-btn">
@@ -99,7 +99,7 @@
     <input type="file" id="audio-input" accept="audio/*"      class="hidden" multiple/>
 
     <button id="clip-btn" title="Attach">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="#aac5d9"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5c0 1.38 1.12 2.5 2.5 2.5s2.5-1.12 2.5-2.5V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/></svg>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="#aac5d9"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5v10.5c0 .55-.45 1-1 1s-1-.45-1-1[...]
     </button>
 
     <textarea id="message" class="msg-textarea" rows="1" maxlength="2000" placeholder="Message"></textarea>
@@ -122,7 +122,7 @@
     <div class="bg-[#263545] rounded-xl p-3 mb-4 break-all text-xs text-[#aac5d9] font-mono max-h-28 overflow-y-auto" id="resp-code-display"></div>
     <div class="flex gap-3">
       <button id="resp-copy-btn" onclick="copyRespCode()" class="btn-blue flex-1 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2[...]
         Copy
       </button>
       <button onclick="closeRespModal()" class="btn-secondary flex-1 py-2.5 rounded-xl text-sm">Close</button>
@@ -168,7 +168,7 @@
     navigator.clipboard.writeText(authCode);
     respCopyBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Copied!`;
     setTimeout(() => {
-      respCopyBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg> Copy`;
+      respCopyBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-[...]
     }, 2500);
   }
 
@@ -239,12 +239,11 @@
   /* ── Send media (chunked) ── */
   async function sendMediaFile(file) {
     if (!receiveChannel || receiveChannel.readyState !== 'open') { alert('Not connected yet.'); return; }
-    const { type, kind, name, dataURL } = await prepareMediaPayload(file);
-    if (kind === 'audio' || isAudioType(type, name)) {
-      const albumArt = await extractAlbumArt(file);
-      appendAudioMessage(dataURL, name, 'sent', peerDisplayName, messagesEl, albumArt);
+    const { type, kind, name, blob } = await prepareMediaPayload(file);
+    if (kind === 'audio') {
+      appendAudioMessage(blob, name, 'sent', peerDisplayName, messagesEl);
     } else {
-      appendMessage(buildMediaNode(type, dataURL, name), 'sent', peerDisplayName);
+      appendMessage(buildMediaNode(new Blob([await file.arrayBuffer()], { type }), name), 'sent', peerDisplayName);
     }
     await sendFileChunked(receiveChannel, file);
   }
@@ -275,12 +274,13 @@
 
     localConnection.ondatachannel = event => {
       receiveChannel = event.channel;
+      receiveChannel.binaryType = 'arraybuffer'; // Edit 1: Set binaryType
 
-      chunkedReceiver = new ChunkedReceiver(({ type, kind, name, dataURL }) => {
-        if (kind === 'audio' || isAudioType(type, name)) {
-          appendAudioMessage(dataURL, name, 'received', hostName, messagesEl, null);
+      chunkedReceiver = new ChunkedReceiver(({ type, kind, name, blob }) => {
+        if (kind === 'audio') {
+          appendAudioMessage(blob, name, 'received', hostName, messagesEl, null);
         } else {
-          appendMessage(buildMediaNode(type, dataURL, name), 'received', hostName);
+          appendMessage(buildMediaNode(blob, name), 'received', hostName);
         }
       });
 
@@ -294,7 +294,7 @@
 
       receiveChannel.onmessage = event => {
         const raw = event.data;
-        if (typeof raw !== 'string') return;
+        if (raw instanceof ArrayBuffer) { chunkedReceiver.feed(raw); return; } // Edit 2: Route binary frames
         if (chunkedReceiver.feed(raw)) return;
         if (raw.startsWith('NAME:')) {
           hostName = sanitizeHTML(raw.substring(5));
