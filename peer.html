@@ -239,12 +239,13 @@
   /* ── Send media (chunked) ── */
   async function sendMediaFile(file) {
     if (!receiveChannel || receiveChannel.readyState !== 'open') { alert('Not connected yet.'); return; }
-    const { type, kind, name, dataURL } = await prepareMediaPayload(file);
+    const payload = await prepareMediaPayload(file);
+    const { type, kind, name } = payload;
     if (kind === 'audio' || isAudioType(type, name)) {
       const albumArt = await extractAlbumArt(file);
-      appendAudioMessage(dataURL, name, 'sent', peerDisplayName, messagesEl, albumArt);
+      appendAudioMessage(payload.blob, name, 'sent', peerDisplayName, messagesEl, albumArt);
     } else {
-      appendMessage(buildMediaNode(type, dataURL, name), 'sent', peerDisplayName);
+      appendMessage(buildMediaNode(new Blob([await file.arrayBuffer()], { type }), name), 'sent', peerDisplayName);
     }
     await sendFileChunked(receiveChannel, file);
   }
@@ -276,11 +277,11 @@
     localConnection.ondatachannel = event => {
       receiveChannel = event.channel;
 
-      chunkedReceiver = new ChunkedReceiver(({ type, kind, name, dataURL }) => {
+      chunkedReceiver = new ChunkedReceiver(({ type, kind, name, blob }) => {
         if (kind === 'audio' || isAudioType(type, name)) {
-          appendAudioMessage(dataURL, name, 'received', hostName, messagesEl, null);
+          appendAudioMessage(blob, name, 'received', hostName, messagesEl, null);
         } else {
-          appendMessage(buildMediaNode(type, dataURL, name), 'received', hostName);
+          appendMessage(buildMediaNode(blob, name), 'received', hostName);
         }
       });
 
