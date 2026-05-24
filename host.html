@@ -278,6 +278,7 @@
     const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
     localConnection = new RTCPeerConnection(config);
     sendChannel = localConnection.createDataChannel('chat');
+    sendChannel.binaryType = 'arraybuffer';
 
     chunkedReceiver = new ChunkedReceiver(({ type, kind, name, blob }) => {
       if (kind === 'audio' || isAudioType(type, name)) {
@@ -297,6 +298,7 @@
 
     sendChannel.onmessage = event => {
       const raw = event.data;
+      if (raw instanceof ArrayBuffer) { chunkedReceiver.feed(raw); return; }
       if (typeof raw !== 'string') return;
       if (chunkedReceiver.feed(raw)) return;
       if (raw.startsWith('NAME:')) {
