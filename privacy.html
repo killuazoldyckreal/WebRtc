@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PeerLink — Terms of Service</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+  body { font-family: 'Sora', sans-serif; }
+  .legal-body { max-width: 720px; margin: 0 auto; padding: 60px 24px; }
+  .legal-body h1 { font-size: 2rem; font-weight: 800; margin-bottom: 8px; }
+  .legal-body h2 { font-size: 1.1rem; font-weight: 700; margin: 32px 0 10px; color: var(--text-primary); }
+  .legal-body p, .legal-body li { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.8; margin-bottom: 8px; }
+  .legal-body ul { padding-left: 20px; }
+  .legal-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border-primary); margin-bottom: 40px; }
+  .legal-tab { padding: 12px 20px; font-size: 0.875rem; font-weight: 600; cursor: pointer; color: var(--text-muted); border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.2s; text-decoration: none; }
+  .legal-tab.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); }
+  .legal-section { display: none; }
+  .legal-section.active { display: block; }
+</style>
+</head>
+<body>
+<nav class="navbar">
+  <a href="index.html" class="navbar-logo">
+    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+    </svg>
+    PeerLink
+  </a>
+  <a href="index.html" class="btn btn-ghost btn-sm">← Back to Home</a>
+</nav>
+
+<div class="legal-body">
+  <div class="legal-tabs">
+    <a href="tos.html" class="legal-tab active" onclick="showSection('tos',this);return false;">Terms of Service</a>
+    <a href="privacy.html" class="legal-tab" onclick="showSection('privacy',this);return false;">Privacy Policy</a>
+  </div>
+
+  <!-- TOS -->
+  <div class="legal-section active" id="tos-section">
+    <h1>Terms of Service</h1>
+    <p style="color:var(--text-muted); font-size:0.8rem; margin-bottom:32px;">Last updated: January 2026</p>
+
+    <h2>1. Acceptance of Terms</h2>
+    <p>By using PeerLink ("the Service"), you agree to these Terms of Service. If you do not agree, do not use the Service.</p>
+
+    <h2>2. Description of Service</h2>
+    <p>PeerLink provides a browser-based, peer-to-peer communication tool using WebRTC technology. All data is transmitted directly between browsers; no data is stored on PeerLink servers.</p>
+
+    <h2>3. Acceptable Use</h2>
+    <p>You agree NOT to use the Service to:</p>
+    <ul>
+      <li>Transmit illegal content or materials</li>
+      <li>Harass, threaten, or harm other users</li>
+      <li>Distribute malware, viruses, or harmful code</li>
+      <li>Infringe upon intellectual property rights</li>
+      <li>Violate any applicable laws or regulations</li>
+    </ul>
+
+    <h2>4. No Warranties</h2>
+    <p>The Service is provided "as is" without warranty of any kind. We do not guarantee uptime, data delivery, or compatibility with all devices or networks.</p>
+
+    <h2>5. Limitation of Liability</h2>
+    <p>PeerLink shall not be liable for any direct, indirect, incidental, or consequential damages arising from your use of the Service, including but not limited to loss of data or communications.</p>
+
+    <h2>6. Technical Limitations</h2>
+    <p>WebRTC connections may not work in all network environments (e.g. strict corporate firewalls). We do not guarantee successful connections in all circumstances.</p>
+
+    <h2>7. Modifications</h2>
+    <p>We reserve the right to modify these terms at any time. Continued use of the Service constitutes acceptance of revised terms.</p>
+
+    <h2>8. Contact</h2>
+    <p>Questions about these Terms? Contact us through the project repository.</p>
+  </div>
+
+  <!-- Privacy -->
+  <div class="legal-section" id="privacy-section">
+    <h1>Privacy Policy</h1>
+    <p style="color:var(--text-muted); font-size:0.8rem; margin-bottom:32px;">Last updated: January 2026</p>
+
+    <h2>1. Overview</h2>
+    <p>PeerLink is designed with privacy as a core principle. We collect and store as little data as possible — in fact, virtually none.</p>
+
+    <h2>2. Data We Do NOT Collect</h2>
+    <ul>
+      <li>Messages, files, or media you send or receive</li>
+      <li>Your identity, email, or personal information</li>
+      <li>Message history or conversation logs</li>
+      <li>IP addresses (beyond what STUN servers temporarily use for NAT traversal)</li>
+    </ul>
+
+    <h2>3. How Your Data Flows</h2>
+    <p>All messages and files travel directly between browsers using WebRTC DataChannel. STUN servers (operated by Google) are used only to discover your public IP for connection establishment — they do not relay or log your data.</p>
+
+    <h2>4. Cookies and Local Storage</h2>
+    <p>PeerLink does not use cookies, localStorage, or any persistent browser storage. Session state exists only in memory and is cleared when you close the tab.</p>
+
+    <h2>5. Third-Party Services</h2>
+    <p>We use public STUN servers (stun.l.google.com) for NAT traversal. These servers see your public IP address momentarily during connection establishment, subject to Google's privacy policy.</p>
+    <p>We use Google Fonts and Tailwind CSS CDN for styling. These services may log basic request metadata per their own privacy policies.</p>
+
+    <h2>6. Children's Privacy</h2>
+    <p>PeerLink is not directed at children under 13. We do not knowingly collect information from children.</p>
+
+    <h2>7. Changes to This Policy</h2>
+    <p>We may update this Privacy Policy. The "last updated" date at the top reflects the most recent revision.</p>
+
+    <h2>8. Contact</h2>
+    <p>For privacy concerns, please reach out via the project repository.</p>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="footer-bottom" style="max-width:720px; margin:0 auto; padding-top:16px; border-top:1px solid var(--border-primary); display:flex; justify-content:space-between; font-size:0.8rem; color:var(--text-muted);">
+    <span>© 2026 PeerLink</span>
+    <div style="display:flex;gap:16px;">
+      <a href="tos.html" style="color:var(--text-muted);">Terms</a>
+      <a href="privacy.html" style="color:var(--text-muted);">Privacy</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  function showSection(id, tab) {
+    document.querySelectorAll('.legal-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.legal-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(id + '-section').classList.add('active');
+    tab.classList.add('active');
+  }
+  // Check URL hash
+  if (location.pathname.includes('privacy')) {
+    showSection('privacy', document.querySelectorAll('.legal-tab')[1]);
+  }
+</script>
+</body>
+</html>

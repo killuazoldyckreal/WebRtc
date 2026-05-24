@@ -1,118 +1,419 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TeleChat — Secure P2P</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-  <link rel="stylesheet" href="styles.css">
-  <style>
-    body {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: auto;
-      min-height: 100vh;
-      overflow: auto;
-    }
-    .bg-dots {
-      background-image: radial-gradient(circle, #2b5278 1px, transparent 1px);
-      background-size: 28px 28px;
-      opacity: 0.35;
-    }
-    .btn-host {
-      background: linear-gradient(135deg, #2b6cb0, #2196f3);
-      box-shadow: 0 4px 24px rgba(33,150,243,0.35);
-      transition: all 0.2s ease;
-    }
-    .btn-host:hover {
-      background: linear-gradient(135deg, #2563eb, #42a5f5);
-      transform: translateY(-1px);
-      box-shadow: 0 8px 32px rgba(33,150,243,0.5);
-    }
-    .btn-peer {
-      background: linear-gradient(135deg, #0f7b54, #26a17b);
-      box-shadow: 0 4px 24px rgba(38,161,123,0.35);
-      transition: all 0.2s ease;
-    }
-    .btn-peer:hover {
-      background: linear-gradient(135deg, #0d6b48, #2eb88a);
-      transform: translateY(-1px);
-      box-shadow: 0 8px 32px rgba(38,161,123,0.5);
-    }
-    .logo-ring { animation: spin-slow 12s linear infinite; }
-    @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-    .pulse-dot { animation: pulse 2s ease-in-out infinite; }
-    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(0.85)} }
-    .float { animation: float 4s ease-in-out infinite; }
-    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
-    .badge { animation: badge-pop 0.6s cubic-bezier(0.34,1.56,0.64,1) both; }
-    @keyframes badge-pop { from{transform:scale(0);opacity:0} to{transform:scale(1);opacity:1} }
-    button { transition: all 0.2s ease; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PeerLink — Secure WebRTC Chat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Sora:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="styles.css">
+<style>
+  body { font-family: 'Sora', sans-serif; }
+  .hero-glow {
+    position: absolute;
+    width: 600px; height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(31,111,235,0.18) 0%, transparent 70%);
+    top: -100px; left: 50%;
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+  .hero-grid {
+    background-image: linear-gradient(rgba(48,54,61,0.3) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(48,54,61,0.3) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+  .feature-icon-wrap {
+    width: 48px; height: 48px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .step-line {
+    position: absolute;
+    left: 24px; top: 48px; bottom: -20px;
+    width: 1px;
+    background: linear-gradient(to bottom, var(--border-primary), transparent);
+  }
+  .hero-cta-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 20px;
+    padding: 32px;
+    text-align: center;
+    max-width: 460px;
+    width: 100%;
+    box-shadow: 0 0 0 1px rgba(88,166,255,0.06), var(--shadow-lg);
+  }
+  .big-btn {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 8px;
+    padding: 20px 24px;
+    border-radius: 14px;
+    border: 1px solid var(--border-primary);
+    background: var(--bg-tertiary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    flex: 1;
+  }
+  .big-btn:hover { border-color: var(--accent-blue); background: var(--bg-overlay); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(88,166,255,0.15); text-decoration: none; }
+  .big-btn .icon { font-size: 2rem; }
+  .big-btn .label { font-weight: 700; font-size: 1rem; color: var(--text-primary); }
+  .big-btn .desc { font-size: 0.78rem; color: var(--text-muted); }
+  .big-btn.primary { border-color: var(--accent-blue-dark); background: rgba(31,111,235,0.1); }
+  .big-btn.primary:hover { background: rgba(31,111,235,0.2); }
+  .section-title {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+  }
+  .section-sub {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    max-width: 540px;
+    margin: 0 auto 48px;
+  }
+  .stat-num { font-size: 2.5rem; font-weight: 800; color: var(--accent-blue); font-family: 'JetBrains Mono', monospace; }
+  .stat-label { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; }
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+  .float-anim { animation: float 4s ease-in-out infinite; }
+  .float-anim-2 { animation: float 5s ease-in-out 1s infinite; }
+  .float-anim-3 { animation: float 6s ease-in-out 2s infinite; }
+</style>
 </head>
 <body>
-  <div class="absolute inset-0 bg-dots pointer-events-none"></div>
 
-  <div class="relative z-10 flex flex-col items-center gap-8 px-4 w-full max-w-md">
-    <div class="float flex flex-col items-center gap-4">
-      <div class="relative">
-        <div class="logo-ring absolute inset-0 rounded-full border-2 border-dashed border-blue-400/30 scale-125"></div>
-        <div class="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-2xl shadow-blue-900/50">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8l-1.68 7.94c-.12.57-.45.71-.9.44l-2.5-1.84-1.2 1.16c-.13.13-.25.25-.51.25l.18-2.56 4.64-4.19c.2-.18-.04-.27-.31-.09L7.62 14.81l-2.46-.77c-.53-.17-.54-.53.12-.78l9.62-3.71c.44-.16.83.11.74.75z" fill="white"/>
-          </svg>
-        </div>
-        <div class="pulse-dot absolute -bottom-1 -right-1 w-5 h-5 bg-green-400 rounded-full border-2 border-[#17212b]"></div>
+<!-- NAVBAR -->
+<nav class="navbar">
+  <a href="index.html" class="navbar-logo">
+    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+    </svg>
+    <span>PeerLink</span>
+  </a>
+  <ul class="navbar-links">
+    <li><a href="#features">Features</a></li>
+    <li><a href="#how-it-works">How it Works</a></li>
+    <li><a href="#security">Security</a></li>
+    <li><a href="#faq">FAQ</a></li>
+  </ul>
+  <div class="navbar-actions">
+    <a href="host.html" class="btn btn-primary">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/><path d="M12 8v8m-4-4h8"/>
+      </svg>
+      Start Chat
+    </a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section style="position:relative; overflow:hidden; padding: 80px 24px 60px;" class="hero-grid">
+  <div class="hero-glow"></div>
+  <div style="max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center;">
+    <div>
+      <div class="badge badge-blue mb-4" style="display:inline-flex; margin-bottom:16px;">
+        <span style="width:6px;height:6px;border-radius:50%;background:var(--accent-green);display:inline-block;"></span>
+        P2P — No Server in the Middle
       </div>
-      <div class="text-center">
-        <h1 class="text-3xl font-extrabold text-white tracking-tight">TeleChat</h1>
-        <p class="text-sm text-[#6d9ab5] mt-1 font-medium">Peer-to-peer · No servers · No logs</p>
+      <h1 style="font-size: clamp(2rem, 4vw, 3rem); font-weight: 800; line-height: 1.1; margin-bottom: 20px; color: var(--text-primary);">
+        Encrypted<br>
+        <span style="color: var(--accent-blue);">Peer-to-Peer</span><br>
+        Messaging
+      </h1>
+      <p style="color: var(--text-secondary); font-size: 1rem; margin-bottom: 32px; line-height: 1.7;">
+        Send text, images and audio directly browser-to-browser. No accounts, no servers storing your data. 100 KB chunked transfer over WebRTC DataChannel.
+      </p>
+      <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+        <a href="host.html" class="btn btn-primary btn-lg">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+          Host a Session
+        </a>
+        <a href="peer.html" class="btn btn-secondary btn-lg">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Join as Peer
+        </a>
+      </div>
+      <!-- Stats row -->
+      <div style="display: flex; gap: 32px; margin-top: 40px; padding-top: 32px; border-top: 1px solid var(--border-primary);">
+        <div><div class="stat-num">100<span style="font-size:1.2rem">KB</span></div><div class="stat-label">Chunk size</div></div>
+        <div><div class="stat-num">E2E</div><div class="stat-label">Encrypted</div></div>
+        <div><div class="stat-num">0</div><div class="stat-label">Servers storing data</div></div>
       </div>
     </div>
-
-    <div class="card w-full rounded-2xl p-6 flex flex-col gap-5">
-      <div class="flex items-center gap-3 pb-4 border-b border-white/5">
-        <div class="badge w-2 h-2 rounded-full bg-blue-400"></div>
-        <p class="text-[#aac5d9] text-sm font-semibold uppercase tracking-widest">Choose your role</p>
+    <!-- Chat Preview -->
+    <div style="position: relative;">
+      <div style="background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow-lg); max-width: 360px; margin: 0 auto;" class="float-anim">
+        <!-- Mock chat header -->
+        <div style="background: var(--bg-tertiary); padding: 12px 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border-primary);">
+          <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent-green); box-shadow: 0 0 0 3px rgba(63,185,80,0.25);"></div>
+          <span style="font-weight: 600; font-size: 0.9rem;">Peer Connected</span>
+          <span style="margin-left: auto; font-size: 0.75rem; color: var(--text-muted);">🔒 Encrypted</span>
+        </div>
+        <!-- Mock messages -->
+        <div style="padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="align-self: flex-start; max-width: 80%;">
+            <div style="background: var(--msg-recv-bg); padding: 10px 14px; border-radius: 18px 18px 18px 4px; font-size: 0.85rem;">Hey! This is end-to-end encrypted 🔐</div>
+            <div style="font-size: 0.68rem; color: var(--text-muted); margin-top: 3px; padding-left: 4px;">9:19 PM</div>
+          </div>
+          <div style="align-self: flex-end; max-width: 80%;">
+            <div style="background: var(--msg-sent-bg); color: #fff; padding: 10px 14px; border-radius: 18px 18px 4px 18px; font-size: 0.85rem;">No servers! Pure WebRTC P2P ✨</div>
+            <div style="font-size: 0.68rem; color: var(--text-muted); margin-top: 3px; text-align: right; padding-right: 4px;">9:19 PM ✓✓</div>
+          </div>
+          <div style="align-self: flex-start; max-width: 80%;">
+            <div style="background: var(--bg-tertiary); border: 1px solid var(--border-primary); border-radius: 12px; padding: 10px 12px;">
+              <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                <div style="width:36px; height:36px; border-radius:8px; background: linear-gradient(135deg, var(--accent-blue-dark), var(--accent-purple)); display:flex; align-items:center; justify-content:center;">🎵</div>
+                <div><div style="font-size:0.78rem; font-weight:600;">YUM YUM</div><div style="font-size:0.68rem; color:var(--text-muted);">LXNGVX Mc GW</div></div>
+              </div>
+              <div style="height:3px; background: var(--bg-overlay); border-radius:2px;"><div style="width:35%; height:100%; background: var(--accent-blue); border-radius:2px;"></div></div>
+              <div style="display:flex; justify-content:space-between; font-size:0.65rem; color:var(--text-muted); margin-top:3px;"><span>0:45</span><span>2:09</span></div>
+            </div>
+          </div>
+        </div>
       </div>
+      <!-- Floating badges -->
+      <div style="position:absolute; top: -12px; right: 0; background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius:10px; padding: 8px 12px; font-size:0.75rem; display:flex; align-items:center; gap:6px; box-shadow: var(--shadow-md);" class="float-anim-2">
+        📎 Multi-attachment
+      </div>
+      <div style="position:absolute; bottom: 20px; right: -20px; background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius:10px; padding: 8px 12px; font-size:0.75rem; display:flex; align-items:center; gap:6px; box-shadow: var(--shadow-md);" class="float-anim-3">
+        🖼️ Image Collage
+      </div>
+    </div>
+  </div>
+</section>
 
-      <button onclick="window.location.href='host.html'" class="btn-host w-full py-4 rounded-xl text-white font-bold text-base flex items-center justify-center gap-3">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-        </svg>
-        Start as Host
-      </button>
-
-      <button onclick="window.location.href='peer.html'" class="btn-peer w-full py-4 rounded-xl text-white font-bold text-base flex items-center justify-center gap-3">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
-        </svg>
-        Join as Peer
-      </button>
-
-      <div class="flex items-center justify-center gap-6 pt-2">
-        <div class="flex items-center gap-1.5 text-xs text-[#4e7a96]">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
-          End-to-End
+<!-- FEATURES -->
+<section id="features" style="padding: 80px 24px; background: var(--bg-secondary); border-top: 1px solid var(--border-primary);">
+  <div style="max-width: 1100px; margin: 0 auto; text-align: center;">
+    <div class="badge badge-purple mb-4" style="display:inline-flex; margin-bottom:12px;">Features</div>
+    <h2 class="section-title">Everything you need for P2P chat</h2>
+    <p class="section-sub">Powered by WebRTC DataChannel. No plugins, no extensions — just pure browser APIs.</p>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; text-align: left;">
+      <!-- Feature cards -->
+      <div class="card card-hover">
+        <div class="feature-icon-wrap" style="background: rgba(31,111,235,0.15); margin-bottom: 16px;">
+          <svg width="22" height="22" fill="none" stroke="#58a6ff" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         </div>
-        <div class="flex items-center gap-1.5 text-xs text-[#4e7a96]">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
-          No Relay
+        <h3 style="font-weight: 700; margin-bottom: 6px;">End-to-End Encrypted</h3>
+        <p style="color: var(--text-secondary); font-size: 0.875rem; line-height: 1.6;">All traffic is encrypted via DTLS-SRTP. Your data never touches a third-party server.</p>
+      </div>
+      <div class="card card-hover">
+        <div class="feature-icon-wrap" style="background: rgba(63,185,80,0.15); margin-bottom: 16px;">
+          <svg width="22" height="22" fill="none" stroke="#3fb950" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         </div>
-        <div class="flex items-center gap-1.5 text-xs text-[#4e7a96]">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
-          WebRTC
+        <h3 style="font-weight: 700; margin-bottom: 6px;">100 KB Chunked Transfer</h3>
+        <p style="color: var(--text-secondary); font-size: 0.875rem; line-height: 1.6;">Files split into 100 KB chunks over RTCDataChannel. Reliable delivery with progress tracking.</p>
+      </div>
+      <div class="card card-hover">
+        <div class="feature-icon-wrap" style="background: rgba(188,140,255,0.15); margin-bottom: 16px;">
+          <svg width="22" height="22" fill="none" stroke="#bc8cff" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        </div>
+        <h3 style="font-weight: 700; margin-bottom: 6px;">Image Collage</h3>
+        <p style="color: var(--text-secondary); font-size: 0.875rem; line-height: 1.6;">Multiple images grouped into a beautiful collage layout — just like Telegram.</p>
+      </div>
+      <div class="card card-hover">
+        <div class="feature-icon-wrap" style="background: rgba(210,153,34,0.15); margin-bottom: 16px;">
+          <svg width="22" height="22" fill="none" stroke="#d29922" stroke-width="2" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="21" cy="16" r="3"/></svg>
+        </div>
+        <h3 style="font-weight: 700; margin-bottom: 6px;">Rich Audio Player</h3>
+        <p style="color: var(--text-secondary); font-size: 0.875rem; line-height: 1.6;">Play/pause, seek, metadata display (title, thumbnail, duration). Works on all browsers — uses native &lt;audio&gt; element.</p>
+      </div>
+      <div class="card card-hover">
+        <div class="feature-icon-wrap" style="background: rgba(248,81,73,0.15); margin-bottom: 16px;">
+          <svg width="22" height="22" fill="none" stroke="#f85149" stroke-width="2" viewBox="0 0 24 24"><path d="M15.05 5A5 5 0 0 1 19 8.95M15.05 1A9 9 0 0 1 23 8.94m-1 7.98v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 3.07 9a19.79 19.79 0 0 1-3-8.63A2 2 0 0 1 2 .18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L6.91 7.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21 15v3z"/></svg>
+        </div>
+        <h3 style="font-weight: 700; margin-bottom: 6px;">Multi-Attachment</h3>
+        <p style="color: var(--text-secondary); font-size: 0.875rem; line-height: 1.6;">Attach multiple images and audio files in a single message. Remove individual files before sending.</p>
+      </div>
+      <div class="card card-hover">
+        <div class="feature-icon-wrap" style="background: rgba(88,166,255,0.12); margin-bottom: 16px;">
+          <svg width="22" height="22" fill="none" stroke="#58a6ff" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        </div>
+        <h3 style="font-weight: 700; margin-bottom: 6px;">Real-time Transfer Progress</h3>
+        <p style="color: var(--text-secondary); font-size: 0.875rem; line-height: 1.6;">Live progress bars while sending / receiving files over the data channel.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how-it-works" style="padding: 80px 24px;">
+  <div style="max-width: 700px; margin: 0 auto;">
+    <div style="text-align: center; margin-bottom: 48px;">
+      <div class="badge badge-green" style="display:inline-flex; margin-bottom:12px;">How it Works</div>
+      <h2 class="section-title">Connect in 3 steps</h2>
+      <p class="section-sub" style="margin-bottom:0;">No accounts. No passwords. Just signal exchange.</p>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 0;">
+      <div style="display: flex; gap: 20px; position: relative; padding-bottom: 32px;">
+        <div style="position:relative; flex-shrink:0;">
+          <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--accent-blue-dark); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 1.1rem; z-index:1; position:relative;">1</div>
+          <div class="step-line"></div>
+        </div>
+        <div style="padding-top: 10px;">
+          <h3 style="font-weight: 700; margin-bottom: 6px;">Host creates an Offer</h3>
+          <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.7;">Click "Host a Session". An SDP offer code is generated — copy and share it with your peer (via any channel).</p>
+        </div>
+      </div>
+      <div style="display: flex; gap: 20px; position: relative; padding-bottom: 32px;">
+        <div style="position:relative; flex-shrink:0;">
+          <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--accent-purple); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 1.1rem; z-index:1; position:relative;">2</div>
+          <div class="step-line"></div>
+        </div>
+        <div style="padding-top: 10px;">
+          <h3 style="font-weight: 700; margin-bottom: 6px;">Peer creates an Answer</h3>
+          <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.7;">Peer opens "Join as Peer", pastes the offer code, and generates an answer code. Share that back with the host.</p>
+        </div>
+      </div>
+      <div style="display: flex; gap: 20px;">
+        <div style="flex-shrink:0;">
+          <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--accent-green); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 1.1rem;">3</div>
+        </div>
+        <div style="padding-top: 10px;">
+          <h3 style="font-weight: 700; margin-bottom: 6px;">Direct P2P connection!</h3>
+          <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.7;">Host pastes the answer. WebRTC negotiation completes — you're now directly connected, no server required.</p>
         </div>
       </div>
     </div>
   </div>
+</section>
 
-  <script>
-    gsap.from(".card",  { y: 40, opacity: 0, duration: 0.7, ease: "power3.out", delay: 0.2 });
-    gsap.from(".float", { y: -20, opacity: 0, duration: 0.6, ease: "back.out(1.7)" });
-  </script>
+<!-- SECURITY -->
+<section id="security" style="padding: 60px 24px; background: var(--bg-secondary); border-top: 1px solid var(--border-primary);">
+  <div style="max-width: 800px; margin: 0 auto; text-align: center;">
+    <div class="badge badge-orange" style="display:inline-flex; margin-bottom:12px;">Security</div>
+    <h2 class="section-title">Your privacy is the default</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 32px; text-align: left;">
+      <div style="background: var(--bg-primary); border: 1px solid var(--border-primary); border-radius: 12px; padding: 20px;">
+        <div style="font-size: 1.5rem; margin-bottom: 8px;">🔒</div>
+        <h4 style="font-weight: 600; margin-bottom: 4px;">DTLS-SRTP</h4>
+        <p style="color: var(--text-muted); font-size: 0.8rem;">WebRTC's built-in mandatory encryption for all data.</p>
+      </div>
+      <div style="background: var(--bg-primary); border: 1px solid var(--border-primary); border-radius: 12px; padding: 20px;">
+        <div style="font-size: 1.5rem; margin-bottom: 8px;">🚫</div>
+        <h4 style="font-weight: 600; margin-bottom: 4px;">Zero Logging</h4>
+        <p style="color: var(--text-muted); font-size: 0.8rem;">No messages, files, or metadata stored anywhere.</p>
+      </div>
+      <div style="background: var(--bg-primary); border: 1px solid var(--border-primary); border-radius: 12px; padding: 20px;">
+        <div style="font-size: 1.5rem; margin-bottom: 8px;">📡</div>
+        <h4 style="font-weight: 600; margin-bottom: 4px;">STUN Only</h4>
+        <p style="color: var(--text-muted); font-size: 0.8rem;">STUN servers only help with NAT traversal — never relay data.</p>
+      </div>
+      <div style="background: var(--bg-primary); border: 1px solid var(--border-primary); border-radius: 12px; padding: 20px;">
+        <div style="font-size: 1.5rem; margin-bottom: 8px;">🧹</div>
+        <h4 style="font-weight: 600; margin-bottom: 4px;">Session-scoped</h4>
+        <p style="color: var(--text-muted); font-size: 0.8rem;">Close the tab and everything is gone. No persistence.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq" style="padding: 80px 24px;">
+  <div style="max-width: 700px; margin: 0 auto;">
+    <div style="text-align: center; margin-bottom: 48px;">
+      <h2 class="section-title">FAQ</h2>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 12px;" id="faq-list">
+      <!-- FAQs injected by JS -->
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section style="padding: 80px 24px; text-align: center; background: var(--bg-secondary); border-top: 1px solid var(--border-primary);">
+  <h2 style="font-size: 2rem; font-weight: 800; margin-bottom: 12px;">Ready to connect?</h2>
+  <p style="color: var(--text-secondary); margin-bottom: 32px;">No sign-up. No server. Just open and chat.</p>
+  <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
+    <a href="host.html" class="btn btn-primary btn-lg">Host a Session →</a>
+    <a href="peer.html" class="btn btn-secondary btn-lg">Join as Peer</a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="footer-grid">
+    <div class="footer-col">
+      <h4>PeerLink</h4>
+      <p style="font-size: 0.8rem; line-height: 1.6; color: var(--text-muted);">Secure, serverless peer-to-peer messaging powered by WebRTC.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Product</h4>
+      <ul>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#how-it-works">How it Works</a></li>
+        <li><a href="#security">Security</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>App</h4>
+      <ul>
+        <li><a href="host.html">Host Session</a></li>
+        <li><a href="peer.html">Join as Peer</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Legal</h4>
+      <ul>
+        <li><a href="tos.html">Terms of Service</a></li>
+        <li><a href="privacy.html">Privacy Policy</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2026 PeerLink. All rights reserved.</span>
+    <span style="display: flex; align-items: center; gap: 8px;">
+      <span class="status-dot online"></span> Service Operational
+    </span>
+  </div>
+</footer>
+
+<div id="toast-container"></div>
+
+<script src="script.js"></script>
+<script>
+  // FAQ accordion
+  const faqs = [
+    { q: 'Do I need an account?', a: 'No. PeerLink is completely anonymous. No accounts, emails, or passwords required.' },
+    { q: 'What happens to my files?', a: 'Files are sent directly between browsers via WebRTC DataChannel in 100 KB chunks. No server ever sees your data.' },
+    { q: 'Does it work across different networks (NAT)?', a: 'Yes, using STUN servers for NAT traversal. For very restrictive corporate firewalls a TURN server may be needed (not bundled).' },
+    { q: 'Which browsers are supported?', a: 'Any browser supporting WebRTC: Chrome, Firefox, Safari 15+, Edge, and most mobile browsers. Audio uses the native <audio> element for maximum compatibility.' },
+    { q: 'How do I share the connection code?', a: 'Copy and paste it via any existing channel — email, SMS, another chat app. It is just a JSON string.' },
+    { q: 'Is the transfer encrypted?', a: 'Yes. WebRTC mandates DTLS-SRTP encryption. No one can intercept the data in transit.' }
+  ];
+  const list = document.getElementById('faq-list');
+  faqs.forEach(({ q, a }) => {
+    const item = document.createElement('div');
+    item.style.cssText = 'background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: 10px; overflow: hidden;';
+    item.innerHTML = `
+      <button style="width:100%; display:flex; justify-content:space-between; align-items:center; padding:16px 20px; background:none; border:none; cursor:pointer; color:var(--text-primary); font-family:inherit; font-size:0.9rem; font-weight:600; text-align:left; gap:16px;" onclick="this.parentElement.classList.toggle('open')">
+        ${q}
+        <svg style="flex-shrink:0; transition:transform 0.2s;" class="faq-arrow" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-body" style="max-height:0; overflow:hidden; transition:max-height 0.3s ease; padding:0 20px;">
+        <p style="color:var(--text-secondary); font-size:0.875rem; line-height:1.7; padding-bottom:16px;">${a}</p>
+      </div>
+    `;
+    list.appendChild(item);
+    const btn = item.querySelector('button');
+    const body = item.querySelector('.faq-body');
+    const arrow = item.querySelector('.faq-arrow');
+    btn.addEventListener('click', () => {
+      const open = item.classList.contains('open');
+      if (open) { body.style.maxHeight = body.scrollHeight + 'px'; requestAnimationFrame(() => { body.style.maxHeight = '0'; }); arrow.style.transform = ''; }
+      else { body.style.maxHeight = body.scrollHeight + 'px'; arrow.style.transform = 'rotate(180deg)'; }
+    });
+  });
+</script>
 </body>
 </html>
